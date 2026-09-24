@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Ultra Fitness 後台{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 沿用 ultrafitness.com.tw 官網的品牌色 */
+            --brand-orange: #f48124;
+            --brand-orange-dark: #d96a10;
+            --brand-ink: #1a1a1a;
+        }
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
+            margin: 0; background: #f6f5f2; color: #262626;
+        }
+        .topbar {
+            background: var(--brand-orange); color: #fff; display: flex; align-items: center;
+            padding: 0 20px; height: 60px; box-shadow: 0 2px 8px rgba(244,129,36,0.25);
+        }
+        .topbar .brand {
+            font-weight: 900; font-size: 17px; margin-right: 36px; white-space: nowrap;
+            letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;
+        }
+        .topbar .brand .dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; display: inline-block; }
+        .topbar nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
+        .topbar nav a {
+            color: rgba(255,255,255,0.85); text-decoration: none; padding: 10px 16px;
+            font-size: 14px; font-weight: 500; white-space: nowrap; border-bottom: 3px solid transparent;
+        }
+        .topbar nav a:hover { color: #fff; }
+        .topbar nav a.active { color: #fff; font-weight: 700; border-bottom: 3px solid var(--brand-ink); }
+        .topbar .user { font-size: 13px; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
+        .topbar .user button {
+            background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff;
+            padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+        }
+        .topbar .user button:hover { background: rgba(0,0,0,0.25); }
+        .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+        h1.page-title { font-size: 24px; font-weight: 900; margin: 0 0 20px; color: var(--brand-ink); }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
+        .stat-card { background: #fff; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-top: 3px solid var(--brand-orange); }
+        .stat-card .label { font-size: 12px; color: #888; margin-bottom: 6px; font-weight: 500; }
+        .stat-card .value { font-size: 26px; font-weight: 900; color: var(--brand-ink); }
+
+        .panel { background: #fff; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+        .panel h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--brand-ink); }
+
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { text-align: left; color: #888; font-weight: 700; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid var(--brand-orange); }
+        td { padding: 10px; border-bottom: 1px solid #f2f2f2; }
+        tr:last-child td { border-bottom: none; }
+
+        .badge { display: inline-block; font-size: 11px; padding: 2px 8px; font-weight: 700; }
+        .badge-student { background: #eef1fd; color: #4a5bd4; }
+        .badge-coach { background: #fff1e2; color: var(--brand-orange-dark); }
+        .badge-active { background: #e3f7e9; color: #1a8a3f; }
+        .badge-refunded { background: #fdeaea; color: #c0392b; }
+        .badge-free { background: #eef1fd; color: #4a5bd4; }
+
+        .form-row { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+        .form-row > div { flex: 1; min-width: 140px; }
+        label { display: block; font-size: 12px; color: #666; font-weight: 700; margin-bottom: 4px; }
+        input, select {
+            width: 100%; padding: 9px 10px; border: 1px solid #ddd; font-size: 14px;
+            font-family: inherit; background: #fff;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--brand-orange); }
+        button.primary {
+            background: var(--brand-orange); color: #fff; border: none;
+            padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+        }
+        button.primary:hover { background: var(--brand-orange-dark); }
+        .msg { font-size: 13px; padding: 8px 12px; margin-bottom: 12px; display: none; }
+        .msg.success { background: #e3f7e9; color: #1a8a3f; }
+        .msg.error { background: #fdeaea; color: #c0392b; }
+        .empty { color: #999; font-size: 13px; padding: 20px 0; text-align: center; }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <div class="brand"><span class="dot"></span>ULTRA FITNESS 後台</div>
+        <nav>
+            <a href="/admin/" class="{% if active == 'dashboard' %}active{% endif %}">總覽</a>
+            <a href="/admin/members/page" class="{% if active == 'members' %}active{% endif %}">會員</a>
+            <a href="/admin/contracts/page" class="{% if active == 'contracts' %}active{% endif %}">合約</a>
+            <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}">紀錄課程</a>
+            <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}">營收</a>
+            <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}">排班</a>
+        </nav>
+        <div class="user">
+            <span>{{ current_user.username }}（{{ {"manager": "店長", "front_desk": "櫃檯", "coach": "教練"}[current_user.role] }}）</span>
+            <form method="post" action="/admin/logout" style="margin:0;">
+                <button type="submit">登出</button>
+            </form>
+        </div>
+    </div>
+    <div class="container">
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

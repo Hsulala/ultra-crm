@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的課程</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>我的課程</h1>
+        <p>所有合約的剩餘堂數與到期狀態</p>
+    </div>
+
+    <div id="content">
+        <div class="loading">載入中...</div>
+    </div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-student-1"; // 本機開發用：對應林貞如
+
+    const STATUS_LABELS = { active: "進行中", refunded: "已退費", free: "FREE" };
+    const STATUS_BADGE_CLASS = { active: "badge-active", refunded: "badge-refunded", free: "badge-free" };
+
+    function renderContract(c) {
+        const pct = c.total_sessions > 0 ? Math.min(100, Math.round((c.used_sessions / c.total_sessions) * 100)) : 0;
+        const sharedNote = c.is_shared
+            ? `<div class="shared-note">👥 1對2 合約，與 ${c.shared_with_names.join("、")} 共用堂數</div>`
+            : "";
+        return `
+        <div class="card">
+            <div class="card-title-row">
+                <div class="card-title">合約 #${c.contract_no || c.id}</div>
+                <span class="badge ${STATUS_BADGE_CLASS[c.status] || ""}">${STATUS_LABELS[c.status] || c.status}</span>
+            </div>
+            <div class="meta-row"><span>教練</span><b>${c.coach_name}</b></div>
+            <div class="meta-row"><span>購買日期</span><b>${c.purchase_date}</b></div>
+            <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+            <div class="meta-row"><span>已上 ${c.used_sessions} / ${c.total_sessions} 堂</span><b>剩餘 ${c.remaining_sessions} 堂</b></div>
+            ${c.expiry_date ? `<div class="meta-row"><span>到期日</span><b>${c.expiry_date}</b></div>` : ""}
+            ${sharedNote}
+        </div>`;
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            const contracts = await apiFetch("/api/liff/contracts/mine", DEV_LINE_USER_ID);
+            if (!contracts) return; // 正式環境正在 liff.login() 跳轉
+
+            if (contracts.length === 0) {
+                content.innerHTML = `<div class="empty-state"><div class="emoji">📋</div>目前沒有查到合約紀錄</div>`;
+                return;
+            }
+            content.innerHTML = contracts.map(renderContract).join("");
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

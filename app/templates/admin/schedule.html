@@ -1,0 +1,95 @@
+{% extends "admin/base.html" %}
+{% block title %}排班 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">排班（{{ today.year }} 年 {{ today.month }} 月）</h1>
+
+<div class="panel">
+    <h2>新增排班</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>日期</label>
+            <input type="date" id="f-date" value="{{ today }}">
+        </div>
+        <div>
+            <label>班別</label>
+            <select id="f-shift">
+                <option value="morning">早班 09:00-13:00</option>
+                <option value="afternoon">中班 13:00-18:00</option>
+                <option value="evening">晚班 18:00-22:00</option>
+            </select>
+        </div>
+        <div>
+            <label>教練</label>
+            <select id="f-coach">
+                <option value="">請選擇教練</option>
+                {% for c in coaches %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="assignShift()">新增排班</button>
+        </div>
+    </div>
+    <button onclick="publishMonth()" style="margin-top:8px; font-size:13px; font-weight:700; padding:9px 18px; border:1px solid #f48124; background:#fff; color:#f48124; cursor:pointer; font-family:inherit;">發布本月班表</button>
+</div>
+
+<div class="panel">
+    <h2>本月班表</h2>
+    {% if entries %}
+    <table>
+        <tr><th>日期</th><th>班別</th><th>負責人</th><th>狀態</th></tr>
+        {% for e in entries %}
+        <tr>
+            <td>{{ e.work_date }}</td>
+            <td>{{ e.shift }}</td>
+            <td>{{ e.assignee }}</td>
+            <td>{% if e.status == "已發布" %}<span class="badge badge-active">已發布</span>{% else %}<span class="badge" style="background:#eee;color:#888;">草稿</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">本月尚無排班資料</div>
+    {% endif %}
+</div>
+
+<script>
+    const TODAY = "{{ today }}";
+    async function assignShift() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const coachId = document.getElementById("f-coach").value;
+        if (!coachId) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請選擇教練";
+            return;
+        }
+        const payload = {
+            work_date: document.getElementById("f-date").value,
+            shift: document.getElementById("f-shift").value,
+            coach_id: Number(coachId),
+        };
+        const res = await fetch("/admin/schedule", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function publishMonth() {
+        const [year, month] = TODAY.split("-").map(Number);
+        const res = await fetch("/admin/schedule/publish", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`已發布 ${data.published_count} 筆班表`);
+            location.reload();
+        } else {
+            alert("發布失敗");
+        }
+    }
+</script>
+{% endblock %}

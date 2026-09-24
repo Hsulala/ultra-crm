@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ultra-crm",
+      "runtimeExecutable": "/Users/lala/Desktop/BOT/ultra-crm/.venv/bin/python3",
+      "runtimeArgs": ["-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"],
+      "port": 8080
+    }
+  ]
+}

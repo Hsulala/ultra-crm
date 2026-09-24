@@ -1,0 +1,120 @@
+{% extends "admin/base.html" %}
+{% block title %}合約管理 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">合約管理</h1>
+
+<div class="panel">
+    <h2>新增合約</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>合約編號（選填）</label>
+            <input type="text" id="f-contract-no" placeholder="例如 00123">
+        </div>
+        <div>
+            <label>教練</label>
+            <select id="f-coach">
+                <option value="">請選擇教練</option>
+                {% for c in coaches %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>學員（1對2 合約再選第二位）</label>
+            <select id="f-student1">
+                <option value="">請選擇學員</option>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>共同學員（選填，1對2）</label>
+            <select id="f-student2">
+                <option value="">無</option>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>購買日期</label>
+            <input type="date" id="f-purchase-date">
+        </div>
+        <div>
+            <label>單價</label>
+            <input type="number" id="f-unit-price" placeholder="金額">
+        </div>
+        <div>
+            <label>總堂數</label>
+            <input type="number" id="f-total-sessions" placeholder="堂數">
+        </div>
+        <div>
+            <label>狀態</label>
+            <select id="f-status">
+                <option value="active">進行中</option>
+                <option value="free">FREE</option>
+                <option value="refunded">已退費</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createContract()">新增合約</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>合約列表（共 {{ contracts|length }} 筆）</h2>
+    {% if contracts %}
+    <table>
+        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>狀態</th><th>堂數</th><th>購買日期</th></tr>
+        {% for c in contracts %}
+        <tr>
+            <td>#{{ c.contract_no or c.id }}</td>
+            <td>{{ c.student_names }}</td>
+            <td>{{ c.coach_name }}</td>
+            <td><span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span></td>
+            <td>{{ c.used_sessions }} / {{ c.total_sessions }}</td>
+            <td>{{ c.purchase_date }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有合約資料</div>
+    {% endif %}
+</div>
+
+<script>
+    async function createContract() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+
+        const coachId = document.getElementById("f-coach").value;
+        const student1 = document.getElementById("f-student1").value;
+        const student2 = document.getElementById("f-student2").value;
+        const memberIds = [student1, student2].filter(Boolean).map(Number);
+
+        if (!coachId || !student1) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請至少選擇教練與一位學員";
+            return;
+        }
+
+        const payload = {
+            coach_id: Number(coachId),
+            member_ids: memberIds,
+            purchase_date: document.getElementById("f-purchase-date").value,
+            unit_price: Number(document.getElementById("f-unit-price").value || 0),
+            total_sessions: Number(document.getElementById("f-total-sessions").value || 0),
+            contract_no: document.getElementById("f-contract-no").value.trim() || null,
+            status: document.getElementById("f-status").value,
+        };
+
+        const res = await fetch("/admin/contracts", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+</script>
+{% endblock %}

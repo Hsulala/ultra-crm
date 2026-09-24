@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>紀錄課程</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>📝 紀錄課程</h1>
+        <p>純紀錄當堂內容，不會扣合約堂數</p>
+    </div>
+
+    <div id="message"></div>
+    <div id="content">
+        <div class="loading">載入中...</div>
+    </div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-coach-dk"; // 本機開發用：對應教練 DK
+
+    function showMessage(html) {
+        document.getElementById("message").innerHTML = html;
+    }
+
+    function renderCard(c) {
+        const today = new Date().toISOString().slice(0, 10);
+        return `
+        <div class="card" data-contract-id="${c.contract_id}">
+            <div class="card-title-row">
+                <div class="card-title">${c.student_names.join("、")}</div>
+                <span class="badge badge-active">剩 ${c.remaining_sessions} 堂</span>
+            </div>
+            <div class="meta-row"><span>合約編號</span><b>#${c.contract_no || c.contract_id}</b></div>
+            <label style="margin-top:12px;">上課日期</label>
+            <input type="date" class="class-date" value="${today}">
+            <label>課程內容</label>
+            <textarea class="content-input" rows="3" placeholder="今天練了什麼、學員狀態如何..."></textarea>
+            <button class="primary submit-btn">送出紀錄</button>
+        </div>`;
+    }
+
+    async function submitRecord(contractId, btn) {
+        const card = btn.closest(".card");
+        const classDate = card.querySelector(".class-date").value;
+        const content = card.querySelector(".content-input").value.trim();
+
+        if (!content) {
+            showMessage(`<div class="error-box">請先填寫課程內容</div>`);
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "送出中...";
+        try {
+            await apiFetch("/api/liff/class-records", DEV_LINE_USER_ID, {
+                method: "POST",
+                body: JSON.stringify({ contract_id: contractId, class_date: classDate, content_summary: content }),
+            });
+            showMessage(`<div class="success-toast">✅ 已成功記錄課程內容</div>`);
+            card.querySelector(".content-input").value = "";
+        } catch (err) {
+            showMessage(`<div class="error-box">送出失敗：${err.message}</div>`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "送出紀錄";
+        }
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            const contracts = await apiFetch("/api/liff/class-records/active-contracts", DEV_LINE_USER_ID);
+            if (!contracts) return;
+
+            if (contracts.length === 0) {
+                content.innerHTML = `<div class="empty-state"><div class="emoji">🎉</div>目前沒有名下進行中的合約</div>`;
+                return;
+            }
+            content.innerHTML = contracts.map(renderCard).join("");
+            content.querySelectorAll(".submit-btn").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const contractId = parseInt(btn.closest(".card").dataset.contractId, 10);
+                    submitRecord(contractId, btn);
+                });
+            });
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

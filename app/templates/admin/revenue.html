@@ -1,0 +1,126 @@
+{% extends "admin/base.html" %}
+{% block title %}營收報表 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">營收報表</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">今日營收（{{ today }}）</div>
+        <div class="value">${{ "{:,.0f}".format(daily.total) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">本月營收</div>
+        <div class="value">${{ "{:,.0f}".format(monthly.total) }}</div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>新增收款紀錄</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>日期</label>
+            <input type="date" id="f-date" value="{{ today }}">
+        </div>
+        <div>
+            <label>品項分類</label>
+            <select id="f-category">
+                <option value="coaching">教練課</option>
+                <option value="membership">會籍</option>
+                <option value="service_venue">服務(含場租)</option>
+                <option value="beverage">飲料</option>
+                <option value="custom">自訂項目</option>
+            </select>
+        </div>
+        <div>
+            <label>品項名稱</label>
+            <input type="text" id="f-item-name" placeholder="例如 1V1PT*12">
+        </div>
+        <div>
+            <label>金額</label>
+            <input type="number" id="f-amount" placeholder="金額">
+        </div>
+        <div>
+            <label>付款方式</label>
+            <input type="text" id="f-payment-method" placeholder="現金 / 匯款 / 信用卡">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createEntry()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>本月分類小計</h2>
+    {% if monthly.by_category %}
+    <table>
+        <tr><th>品項分類</th><th>小計</th></tr>
+        {% for category, total in monthly.by_category.items() %}
+        <tr><td>{{ category_labels.get(category, category) }}</td><td>${{ "{:,.0f}".format(total) }}</td></tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">本月尚無營收資料</div>
+    {% endif %}
+</div>
+
+<div class="panel">
+    <h2>本月教練業績（依實際帶課堂數，非收款登記教練）</h2>
+    {% if coach_performance %}
+    <table>
+        <tr><th>教練</th><th>帶課堂數</th></tr>
+        {% for row in coach_performance %}
+        <tr><td>{{ row.coach_name }}</td><td>{{ row.class_count }} 堂</td></tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">本月尚無課程紀錄</div>
+    {% endif %}
+</div>
+
+<div class="panel">
+    <h2>今日收款明細</h2>
+    {% if recent_entries %}
+    <table>
+        <tr><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+        {% for e in recent_entries %}
+        <tr>
+            <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
+            <td>{{ e.item_name }}</td>
+            <td>${{ "{:,.0f}".format(e.amount) }}</td>
+            <td>{{ e.payment_method }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">今日尚無收款紀錄</div>
+    {% endif %}
+</div>
+
+<script>
+    async function createEntry() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const payload = {
+            entry_date: document.getElementById("f-date").value,
+            item_category: document.getElementById("f-category").value,
+            item_name: document.getElementById("f-item-name").value.trim(),
+            amount: Number(document.getElementById("f-amount").value || 0),
+            payment_method: document.getElementById("f-payment-method").value.trim(),
+        };
+        if (!payload.item_name || !payload.payment_method || !payload.amount) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫品項名稱、金額與付款方式";
+            return;
+        }
+        const res = await fetch("/admin/revenue", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+</script>
+{% endblock %}

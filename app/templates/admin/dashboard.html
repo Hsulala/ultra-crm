@@ -1,0 +1,49 @@
+{% extends "admin/base.html" %}
+{% block title %}總覽 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">總覽</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">今日營收</div>
+        <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">本月營收</div>
+        <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">在籍學員</div>
+        <div class="value">{{ student_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">教練人數</div>
+        <div class="value">{{ coach_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">進行中合約</div>
+        <div class="value">{{ active_contract_count }}</div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>最近合約</h2>
+    {% if recent_contracts %}
+    <table>
+        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>狀態</th><th>剩餘堂數</th><th>購買日期</th></tr>
+        {% for c in recent_contracts %}
+        <tr>
+            <td>#{{ c.contract_no or c.id }}</td>
+            <td>{{ c.student_names }}</td>
+            <td>{{ c.coach_name }}</td>
+            <td><span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span></td>
+            <td>{{ c.total_sessions - c.used_sessions }} / {{ c.total_sessions }}</td>
+            <td>{{ c.purchase_date }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有合約資料</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,85 @@
+{% extends "admin/base.html" %}
+{% block title %}會員管理 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">會員管理</h1>
+
+<div class="panel">
+    <h2>新增會員 / 教練</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>會員編號</label>
+            <input type="text" id="f-member-no" placeholder="例如 UF0003">
+        </div>
+        <div>
+            <label>姓名</label>
+            <input type="text" id="f-name" placeholder="姓名">
+        </div>
+        <div>
+            <label>身分</label>
+            <select id="f-role">
+                <option value="student">學員</option>
+                <option value="coach">教練</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createMember()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>會員名單（共 {{ members|length }} 位）</h2>
+    {% if members %}
+    <table>
+        <tr><th>會員編號</th><th>姓名</th><th>身分</th><th>綁定狀態</th><th>操作</th></tr>
+        {% for m in members %}
+        <tr id="row-{{ m.id }}">
+            <td>{{ m.member_no }}</td>
+            <td>{{ m.name }}</td>
+            <td><span class="badge badge-{{ m.role }}">{{ {"student": "學員", "coach": "教練"}[m.role] if m.role else "未設定" }}</span></td>
+            <td>{% if m.line_user_id %}✅ 已綁定{% else %}⬜ 未綁定{% endif %}</td>
+            <td><button onclick="issueBindingCode({{ m.id }})" style="font-size:12px; padding:5px 10px; border-radius:6px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button></td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有會員資料</div>
+    {% endif %}
+</div>
+
+<script>
+    async function createMember() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const payload = {
+            member_no: document.getElementById("f-member-no").value.trim(),
+            name: document.getElementById("f-name").value.trim(),
+            role: document.getElementById("f-role").value,
+        };
+        if (!payload.member_no || !payload.name) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫會員編號與姓名";
+            return;
+        }
+        const res = await fetch("/admin/members", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function issueBindingCode(memberId) {
+        const res = await fetch(`/admin/members/${memberId}/binding-code`, { method: "POST" });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`綁定碼：${data.code}\n效期至：${data.expires_at}\n\n請口頭告知會員本人。`);
+        } else {
+            alert("產生失敗");
+        }
+    }
+</script>
+{% endblock %}

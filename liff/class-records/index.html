@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>上課記錄</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <h1>上課記錄</h1>
+        <p>最近 5 筆上課內容</p>
+    </div>
+
+    <div id="content">
+        <div class="loading">載入中...</div>
+    </div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-student-1"; // 本機開發用：對應林貞如
+
+    function renderRecord(r) {
+        return `
+        <div class="card">
+            <div class="record-date">${r.class_date}</div>
+            <div class="record-coach">教練：${r.coach_name}</div>
+            <div class="record-content">${r.content_summary}</div>
+        </div>`;
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            const records = await apiFetch("/api/liff/class-records/mine", DEV_LINE_USER_ID);
+            if (!records) return;
+
+            if (records.length === 0) {
+                content.innerHTML = `<div class="empty-state"><div class="emoji">📝</div>目前沒有上課記錄</div>`;
+                return;
+            }
+            content.innerHTML = records.map(renderRecord).join("");
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>
