@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import ClassRecord, RevenueDetail
+from app.models import ClassRecord, Contract, RevenueDetail
 from app.services.schedule_service import month_bounds
 
 
@@ -87,13 +87,32 @@ def get_monthly_summary(db: Session, *, year: int, month: int) -> Dict:
 
 def get_coach_class_counts(db: Session, *, year: int, month: int) -> List[Dict]:
     """教練業績歸屬：規格要求算給「當堂實際帶課教練」，不是收款當下登記的教練
-    （同一合約輪流上課時不會兩人平分同一堂）。這裡先給「實際帶課堂數」的原始統計，
-    金額換算（乘上合約單價/堂）跟抽成比例本期不做，之後有需要再接上。"""
+    （同一合約輪流上課時不會兩人平分同一堂）。依課程類型（重訓/皮拉提斯）分開統計，
+    比照現行「重訓／皮拉提斯」分欄的月報表。金額換算跟抽成比例本期不做。"""
     start, end = month_bounds(year, month)
     rows = (
-        db.query(ClassRecord.actual_teaching_coach_id, func.count(ClassRecord.id))
+        db.query(ClassRecord.actual_teaching_coach_id, Contract.course_type, func.count(ClassRecord.id))
+        .join(Contract, Contract.id == ClassRecord.contract_id)
         .filter(ClassRecord.class_date >= start, ClassRecord.class_date < end)
-        .group_by(ClassRecord.actual_teaching_coach_id)
+        .group_by(ClassRecord.actual_teaching_coach_id, Contract.course_type)
         .all()
     )
-    return [{"coach_id": coach_id, "class_count": count} for coach_id, count in rows]
+
+    by_coach: Dict[int, Dict[str, int]] = {}
+    for coach_id, course_type, count in rows:
+        by_coach.setdefault(coach_id, {"strength": 0, "pilates": 0})[course_type] = count
+
+    return [
+        {"coach_id": coach_id, "strength_count": counts["strength"], "pilates_count": counts["pilates"]}
+        for coach_id, counts in by_coach.items()
+    ]
+
+
+def get_monthly_entries(db: Session, *, year: int, month: int) -> List[RevenueDetail]:
+    start, end = month_bounds(year, month)
+    return (
+        db.query(RevenueDetail)
+        .filter(RevenueDetail.entry_date >= start, RevenueDetail.entry_date < end)
+        .order_by(RevenueDetail.entry_date.desc(), RevenueDetail.id.desc())
+        .all()
+    )

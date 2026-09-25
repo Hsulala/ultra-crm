@@ -21,3 +21,10 @@ class BookingResponse(BaseModel):
     slot_start_time: time
     area: str
     status: str
+
+
+class AdminBookingCreateRequest(BaseModel):
+    coach_id: int
+    contract_id: int
+    slot_date: date
+    slot_start_time: time

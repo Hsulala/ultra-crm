@@ -25,7 +25,8 @@ class Member(Base, TimestampMixin):
     photo_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     line_user_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     role: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    # 快取欄位，方便圖文選單/會員卡快速判斷；真正的到期判斷仍以 Contract 為準
-    # （見 app/services/binding_service.py），這裡的值由合約異動時重新計算寫入。
+    # 單月會籍的起訖日——單次會籍不記日期，只在營收登記一筆即可（不影響這兩欄）。
+    # membership_active_until 也是自動解綁判斷依據：過期即解綁，見 binding_service。
+    membership_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     membership_active_until: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

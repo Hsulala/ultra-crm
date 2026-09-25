@@ -11,6 +11,7 @@ from app.services.revenue_service import (
     create_revenue_entry,
     get_coach_class_counts,
     get_daily_summary,
+    get_monthly_entries,
     get_monthly_summary,
 )
 from app.templating import templates
@@ -30,9 +31,10 @@ def revenue_page(
     coach_performance = get_coach_class_counts(db, year=today.year, month=today.month)
     coach_names = {m.id: m.name for m in db.query(Member).filter(Member.role == "coach").all()}
 
-    recent_entries = (
+    today_entries = (
         db.query(RevenueDetail).filter(RevenueDetail.entry_date == today).order_by(RevenueDetail.id.desc()).all()
     )
+    month_entries = get_monthly_entries(db, year=today.year, month=today.month)
 
     category_labels = {
         "service_venue": "服務(含場租)",
@@ -52,10 +54,15 @@ def revenue_page(
             "daily": daily,
             "monthly": monthly,
             "coach_performance": [
-                {"coach_name": coach_names.get(row["coach_id"], "未知"), "class_count": row["class_count"]}
+                {
+                    "coach_name": coach_names.get(row["coach_id"], "未知"),
+                    "strength_count": row["strength_count"],
+                    "pilates_count": row["pilates_count"],
+                }
                 for row in coach_performance
             ],
-            "recent_entries": recent_entries,
+            "today_entries": today_entries,
+            "month_entries": month_entries,
             "category_labels": category_labels,
         },
     )

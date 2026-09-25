@@ -27,23 +27,115 @@
 </div>
 
 <div class="panel">
-    <h2>最近合約</h2>
-    {% if recent_contracts %}
-    <table>
-        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>狀態</th><th>剩餘堂數</th><th>購買日期</th></tr>
-        {% for c in recent_contracts %}
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+        <h2 style="margin:0;">當天班表／約課（{{ target_date }}{% if is_today %} · 今天{% endif %}）</h2>
+        <div style="display:flex; gap:8px;">
+            <a href="/admin/?d={{ prev_date }}" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">← 前一天</a>
+            <a href="/admin/" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">今天</a>
+            <a href="/admin/?d={{ next_date }}" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">後一天 →</a>
+        </div>
+    </div>
+
+    {% if columns %}
+    <div style="overflow-x:auto;">
+    <table class="grid-table">
         <tr>
-            <td>#{{ c.contract_no or c.id }}</td>
-            <td>{{ c.student_names }}</td>
-            <td>{{ c.coach_name }}</td>
-            <td><span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span></td>
-            <td>{{ c.total_sessions - c.used_sessions }} / {{ c.total_sessions }}</td>
-            <td>{{ c.purchase_date }}</td>
+            <th class="grid-hour-col">時段</th>
+            {% for col in columns %}
+            <th>
+                {{ col.coach_name }}<br>
+                <span style="font-weight:400; color:#f48124; font-size:11px;">
+                    {{ col.shift_labels|join('/') if col.shift_labels else '未排班' }}
+                </span>
+            </th>
+            {% endfor %}
+            <th style="color:#888;">皮拉提斯</th>
+        </tr>
+        {% for h in hours %}
+        <tr>
+            <td class="grid-hour-col">{{ "%02d:00"|format(h.hour) }}</td>
+            {% for col in columns %}
+            <td class="grid-cell" id="cell-{{ col.coach_id }}-{{ '%02d'|format(h.hour) }}">
+                {% for booking in col.cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                {% if col.cells[h]|length == 0 %}
+                <button class="grid-add-btn" onclick="showAddForm({{ col.coach_id }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
+                {% endif %}
+            </td>
+            {% endfor %}
+            <td class="grid-cell" style="text-align:center; color:#888; font-size:12px;">{{ pilates_usage[h] }}/4</td>
         </tr>
         {% endfor %}
     </table>
+    </div>
     {% else %}
-    <div class="empty">目前沒有合約資料</div>
+    <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
     {% endif %}
 </div>
+
+<style>
+    table.grid-table { border-collapse: collapse; font-size: 12px; width: 100%; }
+    table.grid-table th { background:#faf5ef; padding:8px 6px; text-align:center; border:1px solid #f0f0f0; white-space:nowrap; }
+    .grid-hour-col { width: 56px; font-weight:700; color:#888; text-align:center; background:#fafafa; }
+    td.grid-cell { border:1px solid #f0f0f0; padding:4px; min-width:110px; vertical-align:top; }
+    .grid-booking { background:#fff1e2; color:#d96a10; font-size:11px; padding:3px 5px; margin-bottom:3px; border-radius:3px; display:flex; justify-content:space-between; align-items:center; gap:4px; }
+    .grid-cancel { cursor:pointer; color:#c0392b; font-weight:700; padding:0 2px; }
+    .grid-add-btn { width:100%; background:#fafafa; border:1px dashed #ddd; color:#bbb; font-size:14px; cursor:pointer; padding:3px 0; }
+    .grid-add-btn:hover { background:#fff1e2; color:#f48124; border-color:#f48124; }
+</style>
+
+<script>
+    const TARGET_DATE = "{{ target_date }}";
+    const CONTRACT_OPTIONS = {{ contract_options_json | safe }};
+
+    function showAddForm(coachId, hourStr, btn) {
+        const options = CONTRACT_OPTIONS[coachId] || [];
+        if (options.length === 0) {
+            alert("這位教練目前沒有進行中的合約可以約課");
+            return;
+        }
+        const select = document.createElement("select");
+        select.style.fontSize = "11px";
+        select.style.width = "100%";
+        select.innerHTML = '<option value="">選合約約課...</option>' +
+            options.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
+        select.onchange = () => addBooking(coachId, select.value, hourStr);
+        btn.replaceWith(select);
+        select.focus();
+    }
+
+    async function addBooking(coachId, contractId, hourStr) {
+        if (!contractId) return;
+        const res = await fetch("/admin/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                coach_id: Number(coachId),
+                contract_id: Number(contractId),
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
+        }
+    }
+
+    async function cancelBooking(bookingId) {
+        if (!confirm("確定要取消這筆預約嗎？")) return;
+        const res = await fetch(`/admin/bookings/${bookingId}/cancel`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("取消失敗");
+        }
+    }
+</script>
 {% endblock %}

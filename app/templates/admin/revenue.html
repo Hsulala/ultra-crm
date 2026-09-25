@@ -50,54 +50,88 @@
     </div>
 </div>
 
-<div class="panel">
-    <h2>本月分類小計</h2>
-    {% if monthly.by_category %}
-    <table>
-        <tr><th>品項分類</th><th>小計</th></tr>
-        {% for category, total in monthly.by_category.items() %}
-        <tr><td>{{ category_labels.get(category, category) }}</td><td>${{ "{:,.0f}".format(total) }}</td></tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <div class="empty">本月尚無營收資料</div>
-    {% endif %}
+<div class="panel" style="padding-bottom:0;">
+    <div style="display:flex; gap:0; border-bottom:2px solid #eee; margin-bottom:16px;">
+        <div id="tab-today" class="rev-tab active" onclick="switchTab('today')">今日明細</div>
+        <div id="tab-month" class="rev-tab" onclick="switchTab('month')">本月明細</div>
+    </div>
+
+    <div id="panel-today">
+        {% if today_entries %}
+        <table>
+            <tr><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+            {% for e in today_entries %}
+            <tr>
+                <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
+                <td>{{ e.item_name }}</td>
+                <td>${{ "{:,.0f}".format(e.amount) }}</td>
+                <td>{{ e.payment_method }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">今日尚無收款紀錄</div>
+        {% endif %}
+    </div>
+
+    <div id="panel-month" style="display:none;">
+        <h2>本月分類小計</h2>
+        {% if monthly.by_category %}
+        <table>
+            <tr><th>品項分類</th><th>小計</th></tr>
+            {% for category, total in monthly.by_category.items() %}
+            <tr><td>{{ category_labels.get(category, category) }}</td><td>${{ "{:,.0f}".format(total) }}</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">本月尚無營收資料</div>
+        {% endif %}
+
+        <h2 style="margin-top:20px;">本月教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計）</h2>
+        {% if coach_performance %}
+        <table>
+            <tr><th>教練</th><th>重訓堂數</th><th>皮拉提斯堂數</th></tr>
+            {% for row in coach_performance %}
+            <tr><td>{{ row.coach_name }}</td><td>{{ row.strength_count }} 堂</td><td>{{ row.pilates_count }} 堂</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">本月尚無課程紀錄</div>
+        {% endif %}
+
+        <h2 style="margin-top:20px;">本月收款明細（共 {{ month_entries|length }} 筆）</h2>
+        {% if month_entries %}
+        <table>
+            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+            {% for e in month_entries %}
+            <tr>
+                <td>{{ e.entry_date }}</td>
+                <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
+                <td>{{ e.item_name }}</td>
+                <td>${{ "{:,.0f}".format(e.amount) }}</td>
+                <td>{{ e.payment_method }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">本月尚無收款紀錄</div>
+        {% endif %}
+    </div>
 </div>
 
-<div class="panel">
-    <h2>本月教練業績（依實際帶課堂數，非收款登記教練）</h2>
-    {% if coach_performance %}
-    <table>
-        <tr><th>教練</th><th>帶課堂數</th></tr>
-        {% for row in coach_performance %}
-        <tr><td>{{ row.coach_name }}</td><td>{{ row.class_count }} 堂</td></tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <div class="empty">本月尚無課程紀錄</div>
-    {% endif %}
-</div>
-
-<div class="panel">
-    <h2>今日收款明細</h2>
-    {% if recent_entries %}
-    <table>
-        <tr><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
-        {% for e in recent_entries %}
-        <tr>
-            <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
-            <td>{{ e.item_name }}</td>
-            <td>${{ "{:,.0f}".format(e.amount) }}</td>
-            <td>{{ e.payment_method }}</td>
-        </tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <div class="empty">今日尚無收款紀錄</div>
-    {% endif %}
-</div>
+<style>
+    .rev-tab { padding:10px 20px; font-size:14px; font-weight:700; color:#888; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
+    .rev-tab.active { color:#f48124; border-bottom-color:#f48124; }
+</style>
 
 <script>
+    function switchTab(tab) {
+        document.getElementById("tab-today").classList.toggle("active", tab === "today");
+        document.getElementById("tab-month").classList.toggle("active", tab === "month");
+        document.getElementById("panel-today").style.display = tab === "today" ? "block" : "none";
+        document.getElementById("panel-month").style.display = tab === "month" ? "block" : "none";
+    }
+
     async function createEntry() {
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";

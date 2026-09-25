@@ -29,6 +29,7 @@ def my_contracts(
                 contract_no=c.contract_no,
                 coach_id=c.coach_id,
                 coach_name=coach.name if coach else "未知教練",
+                course_type=c.course_type,
                 purchase_date=c.purchase_date,
                 total_sessions=c.total_sessions,
                 used_sessions=c.used_sessions,

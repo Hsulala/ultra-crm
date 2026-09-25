@@ -1,7 +1,14 @@
 {% extends "admin/base.html" %}
 {% block title %}排班 - Ultra Fitness 後台{% endblock %}
 {% block content %}
-<h1 class="page-title">排班（{{ today.year }} 年 {{ today.month }} 月）</h1>
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+    <h1 class="page-title" style="margin:0;">排班（{{ year }} 年 {{ month }} 月）</h1>
+    <div style="display:flex; gap:8px;">
+        <a href="/admin/schedule/page?year={{ prev_year }}&month={{ prev_month }}" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">← 上個月</a>
+        <a href="/admin/schedule/page" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">本月</a>
+        <a href="/admin/schedule/page?year={{ next_year }}&month={{ next_month }}" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">下個月 →</a>
+    </div>
+</div>
 
 <div class="panel">
     <h2>新增排班</h2>
@@ -34,26 +41,47 @@
 </div>
 
 <div class="panel">
-    <h2>本月班表</h2>
-    {% if entries %}
-    <table>
-        <tr><th>日期</th><th>班別</th><th>負責人</th><th>狀態</th></tr>
-        {% for e in entries %}
+    <table class="cal-table">
         <tr>
-            <td>{{ e.work_date }}</td>
-            <td>{{ e.shift }}</td>
-            <td>{{ e.assignee }}</td>
-            <td>{% if e.status == "已發布" %}<span class="badge badge-active">已發布</span>{% else %}<span class="badge" style="background:#eee;color:#888;">草稿</span>{% endif %}</td>
+            <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th>
+        </tr>
+        {% for week in weeks %}
+        <tr>
+            {% for day in week %}
+            <td class="cal-cell {% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
+                <div class="cal-date">{{ day.date.day }}</div>
+                {% for e in day.entries %}
+                <div class="cal-entry {% if e.status == 'published' %}published{% else %}draft{% endif %}">
+                    <b>{{ e.shift_short }}</b> {{ e.assignee }}
+                </div>
+                {% endfor %}
+            </td>
+            {% endfor %}
         </tr>
         {% endfor %}
     </table>
-    {% else %}
-    <div class="empty">本月尚無排班資料</div>
-    {% endif %}
+    <p style="font-size:12px; color:#888; margin-top:10px;">
+        <span class="legend-dot draft"></span> 草稿
+        <span class="legend-dot published"></span> 已發布
+    </p>
 </div>
 
+<style>
+    table.cal-table { table-layout: fixed; }
+    table.cal-table th { text-align:center; background:#faf5ef; }
+    td.cal-cell { vertical-align: top; height: 90px; padding: 6px; border: 1px solid #f0f0f0; }
+    td.cal-cell.out-of-month { background: #fafafa; color: #ccc; }
+    td.cal-cell.today { background: #fff8f0; }
+    .cal-date { font-size: 12px; font-weight: 700; color: #888; margin-bottom: 4px; }
+    .cal-entry { font-size: 11px; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; }
+    .cal-entry.draft { background: #eee; color: #888; }
+    .cal-entry.published { background: #fff1e2; color: #d96a10; }
+    .legend-dot { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+    .legend-dot.draft { background:#eee; }
+    .legend-dot.published { background:#fff1e2; border:1px solid #d96a10; }
+</style>
+
 <script>
-    const TODAY = "{{ today }}";
     async function assignShift() {
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";
@@ -79,9 +107,9 @@
     }
 
     async function publishMonth() {
-        const [year, month] = TODAY.split("-").map(Number);
         const res = await fetch("/admin/schedule/publish", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ year, month }),
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ year: {{ year }}, month: {{ month }} }),
         });
         if (res.ok) {
             const data = await res.json();

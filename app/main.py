@@ -5,6 +5,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.config import settings
 from app.routers import internal, line_webhook
 from app.routers.admin import auth as admin_auth
+from app.routers.admin import bookings as admin_bookings
 from app.routers.admin import class_records as admin_class_records
 from app.routers.admin import contracts as admin_contracts
 from app.routers.admin import members as admin_members
@@ -22,6 +23,7 @@ app = FastAPI(title="Ultra Fitness CRM")
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key, same_site="lax")
 
 app.include_router(admin_auth.router)
+app.include_router(admin_bookings.router)
 app.include_router(admin_members.router)
 app.include_router(admin_contracts.router)
 app.include_router(admin_class_records.router)

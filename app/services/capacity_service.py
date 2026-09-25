@@ -41,11 +41,9 @@ def contract_unit_count(db: Session, contract_id: int) -> int:
     return 2 if count >= 2 else 1
 
 
-def reserve_pilates_capacity(db: Session, *, slot_date: date, slot_start_time: time, units: int) -> None:
-    """在交易內鎖住這個時段，確認名額夠用。呼叫端要在同一個 db session/transaction
-    裡緊接著寫入 Booking，鎖才會涵蓋到寫入為止（db.commit() 會釋放 advisory lock）。"""
-    _acquire_slot_lock(db, slot_date, slot_start_time)
-
+def get_pilates_usage(db: Session, *, slot_date: date, slot_start_time: time) -> int:
+    """純讀取，不上鎖：這個時段目前用掉幾個皮拉提斯名額，給看板/班表網格顯示用。
+    正式的容量檢查（會上鎖）在 reserve_pilates_capacity。"""
     used = 0
     bookings = (
         db.query(Booking)
@@ -72,6 +70,16 @@ def reserve_pilates_capacity(db: Session, *, slot_date: date, slot_start_time: t
     )
     for venue_booking in venue_bookings:
         used += venue_booking.party_size
+
+    return used
+
+
+def reserve_pilates_capacity(db: Session, *, slot_date: date, slot_start_time: time, units: int) -> None:
+    """在交易內鎖住這個時段，確認名額夠用。呼叫端要在同一個 db session/transaction
+    裡緊接著寫入 Booking，鎖才會涵蓋到寫入為止（db.commit() 會釋放 advisory lock）。"""
+    _acquire_slot_lock(db, slot_date, slot_start_time)
+
+    used = get_pilates_usage(db, slot_date=slot_date, slot_start_time=slot_start_time)
 
     if used + units > PILATES_CAPACITY:
         raise CapacityError(f"該時段皮拉提斯名額已滿（目前 {used}/{PILATES_CAPACITY}，還需要 {units} 個名額）")

@@ -12,15 +12,24 @@ CONTRACT_STATUS_LABELS = {
     "free": "FREE",
 }
 
+COURSE_TYPE_LABELS = {
+    "strength": "重訓",
+    "pilates": "皮拉提斯",
+}
+
 
 class Contract(Base, TimestampMixin):
     __tablename__ = "contracts"
-    __table_args__ = (CheckConstraint("status IN ('active', 'refunded', 'free')", name="ck_contracts_status"),)
+    __table_args__ = (
+        CheckConstraint("status IN ('active', 'refunded', 'free')", name="ck_contracts_status"),
+        CheckConstraint("course_type IN ('strength', 'pilates')", name="ck_contracts_course_type"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     contract_no: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     # 合約「登記」教練，可能跟課堂紀錄裡「實際帶課教練」不同（見 ClassRecord）
     coach_id: Mapped[int] = mapped_column(ForeignKey("members.id"), nullable=False)
+    course_type: Mapped[str] = mapped_column(String, nullable=False, default="strength")
     purchase_date: Mapped[date] = mapped_column(Date, nullable=False)
     unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     total_sessions: Mapped[int] = mapped_column(nullable=False)
