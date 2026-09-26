@@ -154,27 +154,32 @@ def build_day_grid(db: Session, target_date: date) -> Dict:
             }
         )
 
-    # 場租教練獨立一欄：不是會員、沒有排班班別，約課也是直接記客人姓名/人數，
-    # 不是從合約挑——跟一般學員/教練欄位資料形狀不同，前端會分開處理。
-    venue_coaches = db.query(VenueRentalCoach).filter(VenueRentalCoach.is_active == True).all()  # noqa: E712
+    # 場租教練不是一位教練一欄，是比照客戶紙本班表的「自由教練1/2/3」共用檔期——
+    # 同一時段最多 3 組場租客人，哪一檔給哪位教練用跟教練是誰無關，所以這裡固定
+    # 建 3 個欄位（slot_number），每筆預約的顯示文字才帶教練名字。
+    venue_coach_names = {vc.id: vc.name for vc in db.query(VenueRentalCoach).all()}
     venue_bookings = get_venue_bookings_for_date(db, target_date)
-    venue_bookings_by_coach_hour: Dict[tuple, List[VenueBooking]] = {}
+    venue_bookings_by_slot_hour: Dict[tuple, List[VenueBooking]] = {}
     for vb in venue_bookings:
-        venue_bookings_by_coach_hour.setdefault((vb.venue_coach_id, vb.slot_start_time), []).append(vb)
+        venue_bookings_by_slot_hour.setdefault((vb.slot_number, vb.slot_start_time), []).append(vb)
 
     venue_columns = []
-    for vc in venue_coaches:
+    for slot_number in (1, 2, 3):
         cells = {}
         for h in DAY_GRID_HOURS:
             cell_bookings = []
-            for vb in venue_bookings_by_coach_hour.get((vc.id, h), []):
-                prefix = "PL" if vb.area == "pilates" else "PT"
+            for vb in venue_bookings_by_slot_hour.get((slot_number, h), []):
+                coach_name = venue_coach_names.get(vb.venue_coach_id, "?")
                 party_note = "(1對2)" if vb.party_size == 2 else ""
                 cell_bookings.append(
-                    {"booking_id": vb.id, "label": f"{prefix} {vb.customer_name}{party_note}"}
+                    {
+                        "booking_id": vb.id,
+                        "label": f"{vb.customer_name}／{coach_name}{party_note}",
+                        "venue_coach_id": vb.venue_coach_id,
+                    }
                 )
             cells[h] = cell_bookings
-        venue_columns.append({"coach_id": vc.id, "coach_name": vc.name, "cells": cells})
+        venue_columns.append({"slot_number": slot_number, "cells": cells})
 
     return {
         "hours": DAY_GRID_HOURS,

@@ -12,7 +12,7 @@ class ItemCatalogError(Exception):
 def create_item(
     db: Session, *, item_category: str, item_name: str, default_price: Optional[float] = None
 ) -> ItemCatalogEntry:
-    if item_category not in ("service_venue", "membership", "beverage", "coaching", "custom"):
+    if item_category not in ("service", "venue_rental", "membership", "beverage", "coaching", "custom"):
         raise ItemCatalogError("item_category 不合法")
 
     entry = ItemCatalogEntry(item_category=item_category, item_name=item_name, default_price=default_price)
@@ -55,7 +55,7 @@ def list_active_items(db: Session) -> List[ItemCatalogEntry]:
 
 def get_items_grouped_by_category(db: Session) -> Dict[str, List[Dict]]:
     grouped: Dict[str, List[Dict]] = {
-        "service_venue": [], "membership": [], "beverage": [], "coaching": [], "custom": [],
+        "service": [], "venue_rental": [], "membership": [], "beverage": [], "coaching": [], "custom": [],
     }
     for item in list_active_items(db):
         grouped.setdefault(item.item_category, []).append(

@@ -23,6 +23,7 @@ class VenueBookingResponse(BaseModel):
     party_size: int
     slot_date: date
     slot_start_time: time
+    slot_number: int
     area: str
     status: str
 

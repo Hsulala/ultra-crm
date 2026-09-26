@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.admin import get_current_admin_user, verify_password
 from app.database import get_db
-from app.models import AdminUser, Contract, Member
+from app.models import AdminUser, Contract, Member, VenueRentalCoach
 from app.services.booking_service import build_day_grid
 from app.services.revenue_service import get_daily_summary, get_monthly_summary
 from app.templating import templates
@@ -67,6 +67,13 @@ def admin_home(
     contract_options_json = json.dumps(
         {str(col["coach_id"]): col["contract_options"] for col in grid["columns"]}
     )
+    venue_coach_options = (
+        db.query(VenueRentalCoach)
+        .filter(VenueRentalCoach.is_active == True)  # noqa: E712
+        .order_by(VenueRentalCoach.name)
+        .all()
+    )
+    venue_coach_options_json = json.dumps([{"id": vc.id, "name": vc.name} for vc in venue_coach_options])
 
     return templates.TemplateResponse(
         request,
@@ -88,5 +95,6 @@ def admin_home(
             "venue_columns": grid["venue_columns"],
             "pilates_usage": grid["pilates_usage"],
             "contract_options_json": contract_options_json,
+            "venue_coach_options_json": venue_coach_options_json,
         },
     )

@@ -18,15 +18,17 @@ class VenueBooking(Base, TimestampMixin):
     只留姓名/電話當識別。皮拉提斯名額跟一般學員共用同一個上限
     （見 app/services/capacity_service.py）。
 
-    跟一般教練不同：場租教練同一個時段可以同時接好幾組客人（他們是
-    租場地做自己的事，不是綁死一對一/一對二），所以這裡刻意不像
-    Booking 一樣加「同時段只能一筆」的限制。"""
+    比照客戶原本紙本班表：slot_number（1~3）是「自由教練1/2/3」這種共用
+    檔期，同一時段最多 3 組場租客人，哪一組用哪個檔期、是哪位教練無關，
+    所以不像 Booking 一樣綁死「同一教練同時段只能一筆」，改成綁「同時段
+    同檔期只能一筆」（見 ux_venue_bookings_slot_active）。"""
 
     __tablename__ = "venue_bookings"
     __table_args__ = (
         CheckConstraint("area IN ('strength', 'pilates')", name="ck_venue_bookings_area"),
         CheckConstraint("status IN ('booked', 'completed', 'cancelled')", name="ck_venue_bookings_status"),
         CheckConstraint("party_size IN (1, 2)", name="ck_venue_bookings_party_size"),
+        CheckConstraint("slot_number IN (1, 2, 3)", name="ck_venue_bookings_slot_number"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
@@ -36,5 +38,6 @@ class VenueBooking(Base, TimestampMixin):
     party_size: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     slot_date: Mapped[date] = mapped_column(Date, nullable=False)
     slot_start_time: Mapped[time] = mapped_column(Time, nullable=False)
+    slot_number: Mapped[int] = mapped_column(Integer, nullable=False)
     area: Mapped[str] = mapped_column(String, nullable=False)
     status: Mapped[str] = mapped_column(String, nullable=False, default="booked")

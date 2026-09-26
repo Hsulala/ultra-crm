@@ -15,7 +15,8 @@
             <select id="f-category">
                 <option value="coaching">教練課</option>
                 <option value="membership">會籍</option>
-                <option value="service_venue">服務(含場租)</option>
+                <option value="service">服務</option>
+                <option value="venue_rental">場租</option>
                 <option value="beverage">飲料</option>
                 <option value="custom">自訂項目</option>
             </select>
@@ -35,12 +36,22 @@
 </div>
 
 <div class="panel">
-    <h2>品項清單（共 {{ items|length }} 筆）</h2>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <h2 style="margin:0;">品項清單（共 <span id="visible-count">{{ items|length }}</span> 筆）</h2>
+        <div style="min-width:180px;">
+            <select id="f-filter-category" onchange="filterByCategory()">
+                <option value="">全部分類</option>
+                {% for cat, label in category_labels.items() %}
+                <option value="{{ cat }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
     {% if items %}
     <table>
         <tr><th>分類</th><th>品項名稱</th><th>單價</th><th>操作</th></tr>
         {% for item in items %}
-        <tr id="row-{{ item.id }}">
+        <tr id="row-{{ item.id }}" data-category="{{ item.item_category }}">
             <td>{{ category_labels.get(item.item_category, item.item_category) }}</td>
             <td><span id="name-{{ item.id }}">{{ item.item_name }}</span></td>
             <td><span id="price-{{ item.id }}">{% if item.default_price %}${{ "{:,.0f}".format(item.default_price) }}{% else %}未設定{% endif %}</span></td>
@@ -57,6 +68,18 @@
 </div>
 
 <script>
+    function filterByCategory() {
+        const value = document.getElementById("f-filter-category").value;
+        const rows = document.querySelectorAll("table tr[data-category]");
+        let visible = 0;
+        rows.forEach(row => {
+            const show = !value || row.dataset.category === value;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+        });
+        document.getElementById("visible-count").textContent = visible;
+    }
+
     async function createItem() {
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";

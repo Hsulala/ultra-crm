@@ -51,7 +51,7 @@
             </th>
             {% endfor %}
             {% for col in venue_columns %}
-            <th style="color:#888;">{{ col.coach_name }}<br><span style="font-weight:400; font-size:11px;">場租</span></th>
+            <th style="color:#888;">自由教練{{ col.slot_number }}</th>
             {% endfor %}
             <th style="color:#888;">皮拉提斯</th>
         </tr>
@@ -72,14 +72,16 @@
             </td>
             {% endfor %}
             {% for col in venue_columns %}
-            <td class="grid-cell" id="vcell-{{ col.coach_id }}-{{ '%02d'|format(h.hour) }}">
+            <td class="grid-cell" id="vcell-{{ col.slot_number }}-{{ '%02d'|format(h.hour) }}">
                 {% for booking in col.cells[h] %}
                 <div class="grid-booking">
                     {{ booking.label }}
                     <span class="grid-cancel" onclick="cancelVenueBooking({{ booking.booking_id }})">×</span>
                 </div>
                 {% endfor %}
-                <button class="grid-add-btn" onclick="showVenueAddForm({{ col.coach_id }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
+                {% if col.cells[h]|length == 0 %}
+                <button class="grid-add-btn" onclick="showVenueAddForm({{ col.slot_number }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
+                {% endif %}
             </td>
             {% endfor %}
             <td class="grid-cell" style="text-align:center; color:#888; font-size:12px;">{{ pilates_usage[h] }}/4</td>
@@ -106,6 +108,7 @@
 <script>
     const TARGET_DATE = "{{ target_date }}";
     const CONTRACT_OPTIONS = {{ contract_options_json | safe }};
+    const VENUE_COACH_OPTIONS = {{ venue_coach_options_json | safe }};
 
     function showAddForm(coachId, hourStr, btn) {
         const options = CONTRACT_OPTIONS[coachId] || [];
@@ -153,11 +156,18 @@
         }
     }
 
-    function showVenueAddForm(venueCoachId, hourStr, btn) {
-        const td = btn.parentElement;
+    function showVenueAddForm(slotNumber, hourStr, btn) {
+        if (VENUE_COACH_OPTIONS.length === 0) {
+            alert("目前沒有啟用中的場租教練，請先去「場租教練」頁面新增");
+            return;
+        }
         const wrap = document.createElement("div");
         wrap.innerHTML = `
             <input type="text" placeholder="客人姓名" style="width:100%; font-size:11px; margin-bottom:3px; padding:3px;">
+            <select style="width:100%; font-size:11px; margin-bottom:3px;">
+                <option value="">選教練...</option>
+                ${VENUE_COACH_OPTIONS.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}
+            </select>
             <select style="width:100%; font-size:11px; margin-bottom:3px;">
                 <option value="1">1人</option>
                 <option value="2">1對2</option>
@@ -168,15 +178,19 @@
             </select>
             <button style="width:100%; font-size:11px; background:#f48124; color:#fff; border:none; padding:3px;">送出</button>
         `;
-        const [nameInput, sizeSelect, areaSelect, submitBtn] = wrap.children;
-        submitBtn.onclick = () => addVenueBooking(venueCoachId, hourStr, nameInput.value.trim(), Number(sizeSelect.value), areaSelect.value);
+        const [nameInput, coachSelect, sizeSelect, areaSelect, submitBtn] = wrap.children;
+        submitBtn.onclick = () => addVenueBooking(slotNumber, hourStr, nameInput.value.trim(), coachSelect.value, Number(sizeSelect.value), areaSelect.value);
         btn.replaceWith(wrap);
         nameInput.focus();
     }
 
-    async function addVenueBooking(venueCoachId, hourStr, customerName, partySize, area) {
+    async function addVenueBooking(slotNumber, hourStr, customerName, venueCoachId, partySize, area) {
         if (!customerName) {
             alert("請填客人姓名");
+            return;
+        }
+        if (!venueCoachId) {
+            alert("請選教練");
             return;
         }
         const res = await fetch("/admin/venue-bookings", {
@@ -189,6 +203,7 @@
                 area: area,
                 slot_date: TARGET_DATE,
                 slot_start_time: hourStr,
+                slot_number: Number(slotNumber),
             }),
         });
         if (res.ok) {

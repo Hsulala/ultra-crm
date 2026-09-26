@@ -21,6 +21,7 @@ class AdminVenueBookingCreateRequest(BaseModel):
     area: str
     slot_date: date
     slot_start_time: time
+    slot_number: int
     customer_phone: Optional[str] = None
 
 
@@ -39,6 +40,7 @@ def create_venue_booking_endpoint(
             party_size=payload.party_size,
             slot_date=payload.slot_date,
             slot_start_time=payload.slot_start_time,
+            slot_number=payload.slot_number,
             area=payload.area,
         )
     except (VenueBookingError, CapacityError) as exc:

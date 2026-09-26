@@ -6,9 +6,24 @@ from sqlalchemy.orm import Session
 from app.models import VenueBooking
 from app.services.capacity_service import reserve_pilates_capacity
 
+VENUE_SLOT_NUMBERS = (1, 2, 3)
+
 
 class VenueBookingError(Exception):
     pass
+
+
+def _booked_slot_numbers(db: Session, *, slot_date: date, slot_start_time: time) -> set:
+    rows = (
+        db.query(VenueBooking.slot_number)
+        .filter(
+            VenueBooking.slot_date == slot_date,
+            VenueBooking.slot_start_time == slot_start_time,
+            VenueBooking.status == "booked",
+        )
+        .all()
+    )
+    return {n for (n,) in rows}
 
 
 def create_venue_booking(
@@ -21,11 +36,28 @@ def create_venue_booking(
     slot_date: date,
     slot_start_time: time,
     area: str,
+    slot_number: Optional[int] = None,
 ) -> VenueBooking:
+    """slot_number 是總覽頁「自由教練1/2/3」這種共用檔期，跟哪位教練無關。
+    後台總覽頁的「+」按鈕會直接指定要佔哪一檔（slot_number）；教練自己用
+    LINE 約課沒有欄位可以挑，就自動找當下時段還空著的檔期（滿了就報錯）。"""
     if area not in ("strength", "pilates"):
         raise VenueBookingError("area 必須是 strength 或 pilates")
     if party_size not in (1, 2):
         raise VenueBookingError("party_size 只能是 1 或 2")
+
+    booked = _booked_slot_numbers(db, slot_date=slot_date, slot_start_time=slot_start_time)
+
+    if slot_number is None:
+        free = [n for n in VENUE_SLOT_NUMBERS if n not in booked]
+        if not free:
+            raise VenueBookingError(f"這個時段場租名額已滿（{len(VENUE_SLOT_NUMBERS)}/{len(VENUE_SLOT_NUMBERS)}）")
+        slot_number = free[0]
+    else:
+        if slot_number not in VENUE_SLOT_NUMBERS:
+            raise VenueBookingError("slot_number 只能是 1、2 或 3")
+        if slot_number in booked:
+            raise VenueBookingError("這個檔期剛剛已經被約走了，請重新整理頁面")
 
     if area == "pilates":
         reserve_pilates_capacity(db, slot_date=slot_date, slot_start_time=slot_start_time, units=party_size)
@@ -37,6 +69,7 @@ def create_venue_booking(
         party_size=party_size,
         slot_date=slot_date,
         slot_start_time=slot_start_time,
+        slot_number=slot_number,
         area=area,
         status="booked",
     )

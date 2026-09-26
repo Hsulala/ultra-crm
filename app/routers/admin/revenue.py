@@ -40,7 +40,8 @@ def revenue_page(
     month_entries = get_monthly_entries(db, year=today.year, month=today.month)
 
     category_labels = {
-        "service_venue": "服務(含場租)",
+        "service": "服務",
+        "venue_rental": "場租",
         "membership": "會籍",
         "beverage": "飲料",
         "coaching": "教練課",

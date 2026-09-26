@@ -14,7 +14,7 @@ class ItemCatalogEntry(Base, TimestampMixin):
     __tablename__ = "item_catalog_entries"
     __table_args__ = (
         CheckConstraint(
-            "item_category IN ('service_venue', 'membership', 'beverage', 'coaching', 'custom')",
+            "item_category IN ('service', 'venue_rental', 'membership', 'beverage', 'coaching', 'custom')",
             name="ck_item_catalog_entries_category",
         ),
     )

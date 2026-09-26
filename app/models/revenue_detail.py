@@ -9,7 +9,8 @@ from app.database import Base, TimestampMixin
 # payment_method 先不做成 CHECK enum——實際使用的付款方式列舉還沒跟客戶確認過
 # （見 /Users/lala/.claude/plans/mellow-brewing-liskov.md 待確認問題第 6 項）。
 ITEM_CATEGORY_LABELS = {
-    "service_venue": "服務(含場租)",
+    "service": "服務",
+    "venue_rental": "場租",
     "membership": "會籍",
     "beverage": "飲料",
     "coaching": "教練課",
@@ -24,7 +25,7 @@ class RevenueDetail(Base, TimestampMixin):
     __tablename__ = "revenue_details"
     __table_args__ = (
         CheckConstraint(
-            "item_category IN ('service_venue', 'membership', 'beverage', 'coaching', 'custom')",
+            "item_category IN ('service', 'venue_rental', 'membership', 'beverage', 'coaching', 'custom')",
             name="ck_revenue_details_item_category",
         ),
     )
