@@ -85,6 +85,7 @@ def admin_home(
             "is_today": target_date == today,
             "hours": grid["hours"],
             "columns": grid["columns"],
+            "venue_columns": grid["venue_columns"],
             "pilates_usage": grid["pilates_usage"],
             "contract_options_json": contract_options_json,
         },

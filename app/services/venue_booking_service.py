@@ -1,5 +1,5 @@
 from datetime import date, time
-from typing import Optional
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
@@ -57,3 +57,23 @@ def create_venue_booking(
     db.commit()
     db.refresh(booking)
     return booking
+
+
+def cancel_venue_booking(db: Session, *, booking_id: int) -> VenueBooking:
+    booking = db.get(VenueBooking, booking_id)
+    if booking is None:
+        raise VenueBookingError("找不到這筆預約")
+    booking.status = "cancelled"
+    db.commit()
+    db.refresh(booking)
+    return booking
+
+
+def get_venue_bookings_for_date(db: Session, slot_date: date) -> List[VenueBooking]:
+    """總覽/班表網格用：當天所有場租教練的預約。"""
+    return (
+        db.query(VenueBooking)
+        .filter(VenueBooking.slot_date == slot_date, VenueBooking.status == "booked")
+        .order_by(VenueBooking.slot_start_time)
+        .all()
+    )

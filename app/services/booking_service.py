@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 
 from sqlalchemy.orm import Session
 
-from app.models import Booking, Contract, Member, Schedule
+from app.models import Booking, Contract, Member, Schedule, VenueBooking, VenueRentalCoach
 from app.services.capacity_service import (
     CapacityError,
     contract_unit_count,
@@ -11,6 +11,7 @@ from app.services.capacity_service import (
     reserve_pilates_capacity,
 )
 from app.services.contract_service import get_active_contracts_for_coach, get_members_for_contract
+from app.services.venue_booking_service import get_venue_bookings_for_date
 
 DAY_GRID_HOURS = [time(h, 0) for h in range(8, 22)]  # 08:00 ~ 21:00，跟現行紙本班表範圍一致
 SHIFT_SHORT_LABELS = {"morning": "早", "afternoon": "中", "evening": "晚"}
@@ -153,8 +154,31 @@ def build_day_grid(db: Session, target_date: date) -> Dict:
             }
         )
 
+    # 場租教練獨立一欄：不是會員、沒有排班班別，約課也是直接記客人姓名/人數，
+    # 不是從合約挑——跟一般學員/教練欄位資料形狀不同，前端會分開處理。
+    venue_coaches = db.query(VenueRentalCoach).filter(VenueRentalCoach.is_active == True).all()  # noqa: E712
+    venue_bookings = get_venue_bookings_for_date(db, target_date)
+    venue_bookings_by_coach_hour: Dict[tuple, List[VenueBooking]] = {}
+    for vb in venue_bookings:
+        venue_bookings_by_coach_hour.setdefault((vb.venue_coach_id, vb.slot_start_time), []).append(vb)
+
+    venue_columns = []
+    for vc in venue_coaches:
+        cells = {}
+        for h in DAY_GRID_HOURS:
+            cell_bookings = []
+            for vb in venue_bookings_by_coach_hour.get((vc.id, h), []):
+                prefix = "PL" if vb.area == "pilates" else "PT"
+                party_note = "(1對2)" if vb.party_size == 2 else ""
+                cell_bookings.append(
+                    {"booking_id": vb.id, "label": f"{prefix} {vb.customer_name}{party_note}"}
+                )
+            cells[h] = cell_bookings
+        venue_columns.append({"coach_id": vc.id, "coach_name": vc.name, "cells": cells})
+
     return {
         "hours": DAY_GRID_HOURS,
         "columns": columns,
+        "venue_columns": venue_columns,
         "pilates_usage": pilates_usage,
     }

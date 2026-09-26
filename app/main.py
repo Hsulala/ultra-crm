@@ -11,6 +11,8 @@ from app.routers.admin import contracts as admin_contracts
 from app.routers.admin import members as admin_members
 from app.routers.admin import revenue as admin_revenue
 from app.routers.admin import schedule as admin_schedule
+from app.routers.admin import settings as admin_settings
+from app.routers.admin import venue_bookings as admin_venue_bookings
 from app.routers.admin import venue_coaches as admin_venue_coaches
 from app.routers.liff_api import binding as liff_binding
 from app.routers.liff_api import bookings as liff_bookings
@@ -30,6 +32,8 @@ app.include_router(admin_class_records.router)
 app.include_router(admin_schedule.router)
 app.include_router(admin_venue_coaches.router)
 app.include_router(admin_revenue.router)
+app.include_router(admin_settings.router)
+app.include_router(admin_venue_bookings.router)
 app.include_router(liff_binding.router)
 app.include_router(liff_contracts.router)
 app.include_router(liff_class_records.router)

@@ -24,7 +24,7 @@
         </div>
         <div>
             <label>品項分類</label>
-            <select id="f-category">
+            <select id="f-category" onchange="populateItemSelect()">
                 <option value="coaching">教練課</option>
                 <option value="membership">會籍</option>
                 <option value="service_venue">服務(含場租)</option>
@@ -34,10 +34,13 @@
         </div>
         <div>
             <label>品項名稱</label>
-            <input type="text" id="f-item-name" list="item-name-options" placeholder="打字篩選或直接輸入新品項">
-            <datalist id="item-name-options">
-                {% for name in item_name_suggestions %}<option value="{{ name }}">{% endfor %}
-            </datalist>
+            <select id="f-item-select" onchange="onItemSelectChange()"></select>
+            <input type="text" id="f-item-custom" placeholder="輸入品項名稱" style="display:none; margin-top:6px;">
+            {% if current_user.role == "manager" %}
+            <div style="font-size:11px; margin-top:4px;">
+                <a href="/admin/settings/items/page" style="color:#f48124;">管理品項清單</a>
+            </div>
+            {% endif %}
         </div>
         <div>
             <label>金額</label>
@@ -138,13 +141,71 @@
         document.getElementById("panel-month").style.display = tab === "month" ? "block" : "none";
     }
 
+    const ITEMS_BY_CATEGORY = {{ items_by_category_json | safe }};
+
+    function populateItemSelect() {
+        const category = document.getElementById("f-category").value;
+        const select = document.getElementById("f-item-select");
+        const customInput = document.getElementById("f-item-custom");
+
+        if (category === "custom") {
+            select.style.display = "none";
+            select.innerHTML = "";
+            customInput.style.display = "block";
+            customInput.value = "";
+            return;
+        }
+
+        const items = ITEMS_BY_CATEGORY[category] || [];
+        select.style.display = "block";
+        select.innerHTML = '<option value="">請選擇品項...</option>' +
+            items.map(it => `<option value="${it.id}" data-price="${it.price == null ? '' : it.price}" data-name="${it.name}">${it.name}${it.price != null ? ' ($' + it.price.toLocaleString() + ')' : ''}</option>`).join("") +
+            '<option value="__custom__">其他（自行輸入）...</option>';
+        customInput.style.display = "none";
+        customInput.value = "";
+    }
+
+    function onItemSelectChange() {
+        const select = document.getElementById("f-item-select");
+        const customInput = document.getElementById("f-item-custom");
+        const amountInput = document.getElementById("f-amount");
+
+        if (select.value === "__custom__") {
+            customInput.style.display = "block";
+            customInput.value = "";
+            customInput.focus();
+            return;
+        }
+        customInput.style.display = "none";
+
+        const opt = select.selectedOptions[0];
+        if (opt && opt.dataset.price) {
+            amountInput.value = opt.dataset.price;
+        }
+    }
+
+    function getSelectedItemName() {
+        const category = document.getElementById("f-category").value;
+        if (category === "custom") {
+            return document.getElementById("f-item-custom").value.trim();
+        }
+        const select = document.getElementById("f-item-select");
+        if (select.value === "__custom__") {
+            return document.getElementById("f-item-custom").value.trim();
+        }
+        const opt = select.selectedOptions[0];
+        return opt ? (opt.dataset.name || "") : "";
+    }
+
+    populateItemSelect();
+
     async function createEntry() {
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";
         const payload = {
             entry_date: document.getElementById("f-date").value,
             item_category: document.getElementById("f-category").value,
-            item_name: document.getElementById("f-item-name").value.trim(),
+            item_name: getSelectedItemName(),
             amount: Number(document.getElementById("f-amount").value || 0),
             payment_method: document.getElementById("f-payment-method").value.trim(),
         };

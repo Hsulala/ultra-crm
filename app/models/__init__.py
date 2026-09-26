@@ -3,6 +3,7 @@ from app.models.binding_code import BINDING_CODE_STATUS_LABELS, BindingCode
 from app.models.booking import BOOKING_AREA_LABELS, BOOKING_STATUS_LABELS, Booking
 from app.models.class_record import ClassRecord
 from app.models.contract import CONTRACT_STATUS_LABELS, Contract, ContractMember
+from app.models.item_catalog import ItemCatalogEntry
 from app.models.member import MEMBER_ROLE_LABELS, Member
 from app.models.notification_log import NotificationLog
 from app.models.revenue_detail import ITEM_CATEGORY_LABELS, RevenueDetail
@@ -23,6 +24,7 @@ __all__ = [
     "Contract",
     "ContractMember",
     "CONTRACT_STATUS_LABELS",
+    "ItemCatalogEntry",
     "Member",
     "MEMBER_ROLE_LABELS",
     "NotificationLog",

@@ -92,6 +92,9 @@
             <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}">紀錄課程</a>
             <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}">營收</a>
             <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}">排班</a>
+            {% if current_user.role == "manager" %}
+            <a href="/admin/settings/items/page" class="{% if active == 'settings' %}active{% endif %}">設定</a>
+            {% endif %}
         </nav>
         <div class="user">
             <span>{{ current_user.username }}（{{ {"manager": "店長", "front_desk": "櫃檯", "coach": "教練"}[current_user.role] }}）</span>

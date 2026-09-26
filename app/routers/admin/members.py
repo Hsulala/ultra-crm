@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.admin import require_role
 from app.database import get_db
-from app.models import AdminUser, Member
+from app.models import AdminUser, Member, VenueRentalCoach
 from app.schemas.member import (
     BindingCodeResponse,
     MemberCreateRequest,
@@ -31,11 +31,18 @@ def members_page(
         like = f"%{q}%"
         query = query.filter(or_(Member.name.ilike(like), Member.member_no.ilike(like)))
     members = query.order_by(Member.created_at.desc()).all()
+    venue_coaches = db.query(VenueRentalCoach).order_by(VenueRentalCoach.created_at.desc()).all()
 
     return templates.TemplateResponse(
         request,
         "admin/members.html",
-        {"current_user": admin, "active": "members", "members": members, "q": q or ""},
+        {
+            "current_user": admin,
+            "active": "members",
+            "members": members,
+            "venue_coaches": venue_coaches,
+            "q": q or "",
+        },
     )
 
 

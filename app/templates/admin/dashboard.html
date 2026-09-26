@@ -75,6 +75,38 @@
     {% else %}
     <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
     {% endif %}
+
+    {% if venue_columns %}
+    <h2 style="margin-top:24px;">場租教練</h2>
+    <div style="overflow-x:auto;">
+    <table class="grid-table">
+        <tr>
+            <th class="grid-hour-col">時段</th>
+            {% for col in venue_columns %}
+            <th>{{ col.coach_name }}</th>
+            {% endfor %}
+        </tr>
+        {% for h in hours %}
+        <tr>
+            <td class="grid-hour-col">{{ "%02d:00"|format(h.hour) }}</td>
+            {% for col in venue_columns %}
+            <td class="grid-cell" id="vcell-{{ col.coach_id }}-{{ '%02d'|format(h.hour) }}">
+                {% for booking in col.cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelVenueBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                {% if col.cells[h]|length == 0 %}
+                <button class="grid-add-btn" onclick="showVenueAddForm({{ col.coach_id }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
+                {% endif %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% endif %}
 </div>
 
 <style>
@@ -131,6 +163,62 @@
     async function cancelBooking(bookingId) {
         if (!confirm("確定要取消這筆預約嗎？")) return;
         const res = await fetch(`/admin/bookings/${bookingId}/cancel`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("取消失敗");
+        }
+    }
+
+    function showVenueAddForm(venueCoachId, hourStr, btn) {
+        const td = btn.parentElement;
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+            <input type="text" placeholder="客人姓名" style="width:100%; font-size:11px; margin-bottom:3px; padding:3px;">
+            <select style="width:100%; font-size:11px; margin-bottom:3px;">
+                <option value="1">1人</option>
+                <option value="2">1對2</option>
+            </select>
+            <select style="width:100%; font-size:11px; margin-bottom:3px;">
+                <option value="strength">重訓</option>
+                <option value="pilates">皮拉提斯</option>
+            </select>
+            <button style="width:100%; font-size:11px; background:#f48124; color:#fff; border:none; padding:3px;">送出</button>
+        `;
+        const [nameInput, sizeSelect, areaSelect, submitBtn] = wrap.children;
+        submitBtn.onclick = () => addVenueBooking(venueCoachId, hourStr, nameInput.value.trim(), Number(sizeSelect.value), areaSelect.value);
+        btn.replaceWith(wrap);
+        nameInput.focus();
+    }
+
+    async function addVenueBooking(venueCoachId, hourStr, customerName, partySize, area) {
+        if (!customerName) {
+            alert("請填客人姓名");
+            return;
+        }
+        const res = await fetch("/admin/venue-bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                venue_coach_id: Number(venueCoachId),
+                customer_name: customerName,
+                party_size: partySize,
+                area: area,
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
+        }
+    }
+
+    async function cancelVenueBooking(bookingId) {
+        if (!confirm("確定要取消這筆預約嗎？")) return;
+        const res = await fetch(`/admin/venue-bookings/${bookingId}/cancel`, { method: "POST" });
         if (res.ok) {
             location.reload();
         } else {

@@ -1,3 +1,4 @@
+import json
 from datetime import date as date_cls
 
 from fastapi import APIRouter, Depends, Request
@@ -7,11 +8,11 @@ from app.auth.admin import require_role
 from app.database import get_db
 from app.models import AdminUser, Member, RevenueDetail
 from app.schemas.revenue import RevenueEntryCreateRequest, RevenueEntryResponse
+from app.services.item_catalog_service import get_items_grouped_by_category
 from app.services.revenue_service import (
     create_revenue_entry,
     get_coach_class_counts,
     get_daily_summary,
-    get_item_name_suggestions,
     get_monthly_entries,
     get_monthly_summary,
     get_payment_method_suggestions,
@@ -66,7 +67,7 @@ def revenue_page(
             "today_entries": today_entries,
             "month_entries": month_entries,
             "category_labels": category_labels,
-            "item_name_suggestions": get_item_name_suggestions(db),
+            "items_by_category_json": json.dumps(get_items_grouped_by_category(db)),
             "payment_method_suggestions": get_payment_method_suggestions(db),
         },
     )

@@ -10,12 +10,32 @@ import os
 from datetime import date, time, timedelta
 
 from app.database import SessionLocal
-from app.models import AdminUser, Member
+from app.models import AdminUser, Member, VenueRentalCoach
 from app.services.booking_service import create_booking
 from app.services.class_record_service import create_class_record
 from app.services.contract_service import create_contract
 from app.services.revenue_service import create_revenue_entry
 from app.services.schedule_service import assign_shift
+from app.services.venue_booking_service import create_venue_booking
+
+
+def seed_venue_coach_demo(db) -> None:
+    """場租教練跟一般會員是不同的表，各自獨立判斷是否已經 seed 過，
+    不會因為主要示範資料已經跑過就永遠跳過這塊。"""
+    if db.query(VenueRentalCoach).count() > 0:
+        print("已經有場租教練資料，略過場租教練示範資料。")
+        return
+
+    coach = VenueRentalCoach(name="自由教練1")
+    db.add(coach)
+    db.commit()
+
+    today = date.today()
+    create_venue_booking(
+        db, venue_coach_id=coach.id, customer_name="李先生", customer_phone=None,
+        party_size=1, slot_date=today, slot_start_time=time(16, 0), area="strength",
+    )
+    print("已建立示範場租教練資料：1 位場租教練、今天 1 筆預約。")
 
 
 def main() -> None:
@@ -25,6 +45,8 @@ def main() -> None:
 
     db = SessionLocal()
     try:
+        seed_venue_coach_demo(db)
+
         if db.query(Member).count() > 0:
             print("已經有會員資料存在，略過示範資料 seed。")
             return
