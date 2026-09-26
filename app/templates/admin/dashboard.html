@@ -172,19 +172,15 @@
                 <option value="1">1人</option>
                 <option value="2">1對2</option>
             </select>
-            <select style="width:100%; font-size:11px; margin-bottom:3px;">
-                <option value="strength">重訓</option>
-                <option value="pilates">皮拉提斯</option>
-            </select>
             <button style="width:100%; font-size:11px; background:#f48124; color:#fff; border:none; padding:3px;">送出</button>
         `;
-        const [nameInput, coachSelect, sizeSelect, areaSelect, submitBtn] = wrap.children;
-        submitBtn.onclick = () => addVenueBooking(slotNumber, hourStr, nameInput.value.trim(), coachSelect.value, Number(sizeSelect.value), areaSelect.value);
+        const [nameInput, coachSelect, sizeSelect, submitBtn] = wrap.children;
+        submitBtn.onclick = () => addVenueBooking(slotNumber, hourStr, nameInput.value.trim(), coachSelect.value, Number(sizeSelect.value));
         btn.replaceWith(wrap);
         nameInput.focus();
     }
 
-    async function addVenueBooking(slotNumber, hourStr, customerName, venueCoachId, partySize, area) {
+    async function addVenueBooking(slotNumber, hourStr, customerName, venueCoachId, partySize) {
         if (!customerName) {
             alert("請填客人姓名");
             return;
@@ -200,7 +196,7 @@
                 venue_coach_id: Number(venueCoachId),
                 customer_name: customerName,
                 party_size: partySize,
-                area: area,
+                area: "strength",
                 slot_date: TARGET_DATE,
                 slot_start_time: hourStr,
                 slot_number: Number(slotNumber),

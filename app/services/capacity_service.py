@@ -1,6 +1,7 @@
-"""皮拉提斯器械名額容量檢查：全館單一時段上限 4 個名額，機器算名額，
-1對2 預約一次佔用 2 個名額。一般學員的 Booking 跟場租教練的 VenueBooking
-共用同一個上限，這裡兩張表都要算進去。
+"""皮拉提斯器械名額容量檢查：二樓皮拉提斯教室是器械皮拉提斯，全館單一時段
+上限 4 張床，1對2 預約一次佔用 2 個名額。場租教練（自由教練）是一樓重訓區
+場地租借，跟二樓皮拉提斯是完全不同的空間/資源，不算進這個上限——只有一般
+學員/教練的 Booking（皮拉提斯堂）才算。
 
 用 Postgres advisory lock 鎖住「這個時段」，鎖內即時 SUM 已訂名額，
 不用維護一張容易跟 cancel/refund 失同步的計數器表。SQLite（本機開發）
@@ -13,7 +14,7 @@ from datetime import date, time
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from app.models import Booking, ContractMember, VenueBooking
+from app.models import Booking, ContractMember
 
 PILATES_CAPACITY = 4
 
@@ -57,19 +58,6 @@ def get_pilates_usage(db: Session, *, slot_date: date, slot_start_time: time) ->
     )
     for booking in bookings:
         used += contract_unit_count(db, booking.contract_id)
-
-    venue_bookings = (
-        db.query(VenueBooking)
-        .filter(
-            VenueBooking.area == "pilates",
-            VenueBooking.slot_date == slot_date,
-            VenueBooking.slot_start_time == slot_start_time,
-            VenueBooking.status == "booked",
-        )
-        .all()
-    )
-    for venue_booking in venue_bookings:
-        used += venue_booking.party_size
 
     return used
 

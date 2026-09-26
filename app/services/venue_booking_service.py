@@ -4,7 +4,6 @@ from typing import List, Optional
 from sqlalchemy.orm import Session
 
 from app.models import VenueBooking
-from app.services.capacity_service import reserve_pilates_capacity
 
 VENUE_SLOT_NUMBERS = (1, 2, 3)
 
@@ -35,14 +34,18 @@ def create_venue_booking(
     party_size: int,
     slot_date: date,
     slot_start_time: time,
-    area: str,
+    area: str = "strength",
     slot_number: Optional[int] = None,
 ) -> VenueBooking:
     """slot_number 是總覽頁「自由教練1/2/3」這種共用檔期，跟哪位教練無關。
     後台總覽頁的「+」按鈕會直接指定要佔哪一檔（slot_number）；教練自己用
-    LINE 約課沒有欄位可以挑，就自動找當下時段還空著的檔期（滿了就報錯）。"""
-    if area not in ("strength", "pilates"):
-        raise VenueBookingError("area 必須是 strength 或 pilates")
+    LINE 約課沒有欄位可以挑，就自動找當下時段還空著的檔期（滿了就報錯）。
+
+    場租教練是一樓重訓區的場地租借，跟二樓皮拉提斯（器械床位、有獨立名額
+    上限）是完全不同的空間，所以這裡固定只收 strength，不像一般 Booking
+    還要挑 area、也不會去動皮拉提斯的名額。"""
+    if area != "strength":
+        raise VenueBookingError("場租教練只租一樓重訓區，area 只能是 strength")
     if party_size not in (1, 2):
         raise VenueBookingError("party_size 只能是 1 或 2")
 
@@ -58,9 +61,6 @@ def create_venue_booking(
             raise VenueBookingError("slot_number 只能是 1、2 或 3")
         if slot_number in booked:
             raise VenueBookingError("這個檔期剛剛已經被約走了，請重新整理頁面")
-
-    if area == "pilates":
-        reserve_pilates_capacity(db, slot_date=slot_date, slot_start_time=slot_start_time, units=party_size)
 
     booking = VenueBooking(
         venue_coach_id=venue_coach_id,

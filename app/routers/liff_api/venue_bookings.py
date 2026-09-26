@@ -5,7 +5,6 @@ from app.auth.member_auth import get_current_venue_coach
 from app.database import get_db
 from app.models import VenueRentalCoach
 from app.schemas.venue_booking import VenueBookingCreateRequest, VenueBookingResponse
-from app.services.capacity_service import CapacityError
 from app.services.venue_booking_service import VenueBookingError, create_venue_booking
 
 # 獨立約課入口，跟一般學員/教練約課完全分開，符合規格「場租教練版：獨立圖文選單 +
@@ -30,5 +29,5 @@ def create_venue_booking_endpoint(
             slot_start_time=payload.slot_start_time,
             area=payload.area,
         )
-    except (VenueBookingError, CapacityError) as exc:
+    except VenueBookingError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc

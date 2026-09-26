@@ -10,7 +10,7 @@ class VenueBookingCreateRequest(BaseModel):
     party_size: int = 1
     slot_date: date
     slot_start_time: time
-    area: str
+    area: str = "strength"
 
 
 class VenueBookingResponse(BaseModel):

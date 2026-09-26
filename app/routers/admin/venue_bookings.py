@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.auth.admin import get_current_admin_user
 from app.database import get_db
 from app.models import AdminUser
-from app.services.capacity_service import CapacityError
 from app.services.venue_booking_service import VenueBookingError, cancel_venue_booking, create_venue_booking
 
 router = APIRouter(prefix="/admin/venue-bookings", tags=["admin-venue-bookings"])
@@ -18,7 +17,7 @@ class AdminVenueBookingCreateRequest(BaseModel):
     venue_coach_id: int
     customer_name: str
     party_size: int = 1
-    area: str
+    area: str = "strength"
     slot_date: date
     slot_start_time: time
     slot_number: int
@@ -43,7 +42,7 @@ def create_venue_booking_endpoint(
             slot_number=payload.slot_number,
             area=payload.area,
         )
-    except (VenueBookingError, CapacityError) as exc:
+    except VenueBookingError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
     return {"status": "success", "id": booking.id}
 
