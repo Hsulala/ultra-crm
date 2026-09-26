@@ -32,9 +32,15 @@ class VenueCoachCreateRequest(BaseModel):
     phone: Optional[str] = None
 
 
+class VenueCoachUpdateRequest(BaseModel):
+    name: str
+    phone: Optional[str] = None
+
+
 class VenueCoachResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     name: str
     phone: Optional[str]
+    is_active: bool

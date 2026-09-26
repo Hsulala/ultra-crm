@@ -1,5 +1,6 @@
 {% extends "admin/base.html" %}
 {% block title %}總覽 - Ultra Fitness 後台{% endblock %}
+{% block container_class %}container-wide{% endblock %}
 {% block content %}
 <h1 class="page-title">總覽</h1>
 
@@ -36,7 +37,7 @@
         </div>
     </div>
 
-    {% if columns %}
+    {% if columns or venue_columns %}
     <div style="overflow-x:auto;">
     <table class="grid-table">
         <tr>
@@ -48,6 +49,9 @@
                     {{ col.shift_labels|join('/') if col.shift_labels else '未排班' }}
                 </span>
             </th>
+            {% endfor %}
+            {% for col in venue_columns %}
+            <th style="color:#888;">{{ col.coach_name }}<br><span style="font-weight:400; font-size:11px;">場租</span></th>
             {% endfor %}
             <th style="color:#888;">皮拉提斯</th>
         </tr>
@@ -67,28 +71,6 @@
                 {% endif %}
             </td>
             {% endfor %}
-            <td class="grid-cell" style="text-align:center; color:#888; font-size:12px;">{{ pilates_usage[h] }}/4</td>
-        </tr>
-        {% endfor %}
-    </table>
-    </div>
-    {% else %}
-    <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
-    {% endif %}
-
-    {% if venue_columns %}
-    <h2 style="margin-top:24px;">場租教練</h2>
-    <div style="overflow-x:auto;">
-    <table class="grid-table">
-        <tr>
-            <th class="grid-hour-col">時段</th>
-            {% for col in venue_columns %}
-            <th>{{ col.coach_name }}</th>
-            {% endfor %}
-        </tr>
-        {% for h in hours %}
-        <tr>
-            <td class="grid-hour-col">{{ "%02d:00"|format(h.hour) }}</td>
             {% for col in venue_columns %}
             <td class="grid-cell" id="vcell-{{ col.coach_id }}-{{ '%02d'|format(h.hour) }}">
                 {% for booking in col.cells[h] %}
@@ -100,18 +82,21 @@
                 <button class="grid-add-btn" onclick="showVenueAddForm({{ col.coach_id }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
             </td>
             {% endfor %}
+            <td class="grid-cell" style="text-align:center; color:#888; font-size:12px;">{{ pilates_usage[h] }}/4</td>
         </tr>
         {% endfor %}
     </table>
     </div>
+    {% else %}
+    <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
     {% endif %}
 </div>
 
 <style>
-    table.grid-table { border-collapse: collapse; font-size: 12px; width: 100%; }
-    table.grid-table th { background:#faf5ef; padding:8px 6px; text-align:center; border:1px solid #f0f0f0; white-space:nowrap; }
-    .grid-hour-col { width: 56px; font-weight:700; color:#888; text-align:center; background:#fafafa; }
-    td.grid-cell { border:1px solid #f0f0f0; padding:4px; min-width:110px; vertical-align:top; }
+    table.grid-table { border-collapse: collapse; font-size: 12px; width: 100%; table-layout: fixed; }
+    table.grid-table th { background:#faf5ef; padding:6px 4px; text-align:center; border:1px solid #f0f0f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .grid-hour-col { width: 52px; font-weight:700; color:#888; text-align:center; background:#fafafa; }
+    td.grid-cell { border:1px solid #f0f0f0; padding:3px; width:82px; vertical-align:top; }
     .grid-booking { background:#fff1e2; color:#d96a10; font-size:11px; padding:3px 5px; margin-bottom:3px; border-radius:3px; display:flex; justify-content:space-between; align-items:center; gap:4px; }
     .grid-cancel { cursor:pointer; color:#c0392b; font-weight:700; padding:0 2px; }
     .grid-add-btn { width:100%; background:#fafafa; border:1px dashed #ddd; color:#bbb; font-size:14px; cursor:pointer; padding:3px 0; }

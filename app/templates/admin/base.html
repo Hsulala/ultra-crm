@@ -41,6 +41,7 @@
         }
         .topbar .user button:hover { background: rgba(0,0,0,0.25); }
         .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
+        .container.container-wide { max-width: 1600px; }
         h1.page-title { font-size: 24px; font-weight: 900; margin: 0 0 20px; color: var(--brand-ink); }
 
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
@@ -92,6 +93,9 @@
             <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}">紀錄課程</a>
             <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}">營收</a>
             <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}">排班</a>
+            {% if current_user.role in ("manager", "front_desk", "super_admin") %}
+            <a href="/admin/venue-coaches/page" class="{% if active == 'venue-coaches' %}active{% endif %}">場租教練</a>
+            {% endif %}
             {% if current_user.role in ("manager", "super_admin") %}
             <a href="/admin/settings/items/page" class="{% if active == 'settings' %}active{% endif %}">設定</a>
             {% endif %}
@@ -106,7 +110,7 @@
             </form>
         </div>
     </div>
-    <div class="container">
+    <div class="container {% block container_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </div>
 </body>
