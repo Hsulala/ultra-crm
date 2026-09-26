@@ -1,4 +1,5 @@
 import calendar
+import json
 from datetime import date as date_cls
 from typing import List, Optional
 
@@ -9,7 +10,13 @@ from app.auth.admin import require_role
 from app.database import get_db
 from app.models import AdminUser, Member, Schedule
 from app.schemas.schedule import PublishMonthRequest, ScheduleAssignRequest, ScheduleResponse
-from app.services.schedule_service import ScheduleError, month_bounds, assign_shift, publish_month
+from app.services.schedule_service import (
+    ScheduleError,
+    assign_shift,
+    month_bounds,
+    publish_month,
+    remove_schedule_entry,
+)
 from app.templating import templates
 
 router = APIRouter(prefix="/admin/schedule", tags=["admin-schedule"])
@@ -39,16 +46,19 @@ def schedule_page(
         .all()
     )
     coach_names = {m.id: m.name for m in db.query(Member).filter(Member.role == "coach").all()}
-    admin_names = {a.id: a.username for a in db.query(AdminUser).all()}
+    admin_names = {a.id: a.username for a in db.query(AdminUser).filter(AdminUser.is_active).all()}
 
     by_day = {}
     for e in entries:
         assignee = coach_names.get(e.coach_id) if e.coach_id else admin_names.get(e.admin_user_id)
         by_day.setdefault(e.work_date, []).append(
             {
+                "id": e.id,
                 "shift_short": SHIFT_SHORT_LABELS.get(e.shift, e.shift),
                 "shift": e.shift,
                 "assignee": assignee or "未知",
+                "coach_id": e.coach_id,
+                "admin_user_id": e.admin_user_id,
                 "status": e.status,
             }
         )
@@ -76,6 +86,11 @@ def schedule_page(
     next_year = year + 1 if month == 12 else year
 
     coaches = db.query(Member).filter(Member.role == "coach").all()
+    staff = db.query(AdminUser).filter(AdminUser.is_active).order_by(AdminUser.username).all()
+
+    schedule_by_day_json = json.dumps({d.isoformat(): v for d, v in by_day.items()})
+    coaches_json = json.dumps([{"id": c.id, "name": c.name} for c in coaches])
+    staff_json = json.dumps([{"id": a.id, "name": a.username} for a in staff])
 
     return templates.TemplateResponse(
         request,
@@ -92,6 +107,9 @@ def schedule_page(
             "prev_month": prev_month,
             "next_year": next_year,
             "next_month": next_month,
+            "schedule_by_day_json": schedule_by_day_json,
+            "coaches_json": coaches_json,
+            "staff_json": staff_json,
         },
     )
 
@@ -128,6 +146,19 @@ def assign_shift_endpoint(
         )
     except ScheduleError as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+
+
+@router.post("/{entry_id}/remove")
+def remove_schedule_entry_endpoint(
+    entry_id: int,
+    admin: AdminUser = Depends(require_role("manager")),
+    db: Session = Depends(get_db),
+):
+    try:
+        remove_schedule_entry(db, entry_id=entry_id)
+    except ScheduleError as exc:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, str(exc)) from exc
+    return {"status": "success"}
 
 
 @router.post("/publish")

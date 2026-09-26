@@ -74,6 +74,14 @@ def assign_shift(
     return entry
 
 
+def remove_schedule_entry(db: Session, *, entry_id: int) -> None:
+    entry = db.get(Schedule, entry_id)
+    if entry is None:
+        raise ScheduleError("找不到這筆排班")
+    db.delete(entry)
+    db.commit()
+
+
 def month_bounds(year: int, month: int):
     start = date(year, month, 1)
     end = date(year + 1, 1, 1) if month == 12 else date(year, month + 1, 1)

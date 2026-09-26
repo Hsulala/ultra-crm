@@ -97,9 +97,7 @@
                     <span class="grid-cancel" onclick="cancelVenueBooking({{ booking.booking_id }})">×</span>
                 </div>
                 {% endfor %}
-                {% if col.cells[h]|length == 0 %}
                 <button class="grid-add-btn" onclick="showVenueAddForm({{ col.coach_id }}, '{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
-                {% endif %}
             </td>
             {% endfor %}
         </tr>

@@ -11,33 +11,8 @@
 </div>
 
 <div class="panel">
-    <h2>新增排班</h2>
-    <div id="create-msg" class="msg"></div>
-    <div class="form-row">
-        <div>
-            <label>日期</label>
-            <input type="date" id="f-date" value="{{ today }}">
-        </div>
-        <div>
-            <label>班別</label>
-            <select id="f-shift">
-                <option value="morning">早班 09:00-13:00</option>
-                <option value="afternoon">中班 13:00-18:00</option>
-                <option value="evening">晚班 18:00-22:00</option>
-            </select>
-        </div>
-        <div>
-            <label>教練</label>
-            <select id="f-coach">
-                <option value="">請選擇教練</option>
-                {% for c in coaches %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
-            </select>
-        </div>
-        <div style="display:flex; align-items:flex-end;">
-            <button class="primary" onclick="assignShift()">新增排班</button>
-        </div>
-    </div>
-    <button onclick="publishMonth()" style="margin-top:8px; font-size:13px; font-weight:700; padding:9px 18px; border:1px solid #f48124; background:#fff; color:#f48124; cursor:pointer; font-family:inherit;">發布本月班表</button>
+    <p style="color:#888; font-size:13px; margin:0 0 12px;">點一天的格子就可以編輯當天早/中/晚三班的排班，一個班可以同時排多人（例如一位教練＋一位櫃檯）。</p>
+    <button onclick="publishMonth()" style="font-size:13px; font-weight:700; padding:9px 18px; border:1px solid #f48124; background:#fff; color:#f48124; cursor:pointer; font-family:inherit;">發布本月班表</button>
 </div>
 
 <div class="panel">
@@ -48,7 +23,7 @@
         {% for week in weeks %}
         <tr>
             {% for day in week %}
-            <td class="cal-cell {% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}">
+            <td class="cal-cell {% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}" onclick="openDayEditor('{{ day.date.isoformat() }}')">
                 <div class="cal-date">{{ day.date.day }}</div>
                 {% for e in day.entries %}
                 <div class="cal-entry {% if e.status == 'published' %}published{% else %}draft{% endif %}">
@@ -64,6 +39,16 @@
         <span class="legend-dot draft"></span> 草稿
         <span class="legend-dot published"></span> 已發布
     </p>
+</div>
+
+<div id="day-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
+    <div style="background:#fff; width:460px; max-width:92vw; max-height:86vh; overflow-y:auto; padding:22px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+            <h2 style="margin:0; font-size:16px;" id="day-modal-title"></h2>
+            <button onclick="closeDayEditor()" style="border:none; background:none; font-size:20px; cursor:pointer; color:#888;">&times;</button>
+        </div>
+        <div id="day-modal-body"></div>
+    </div>
 </div>
 
 <style>
@@ -82,19 +67,73 @@
 </style>
 
 <script>
-    async function assignShift() {
-        const msg = document.getElementById("create-msg");
-        msg.style.display = "none";
-        const coachId = document.getElementById("f-coach").value;
-        if (!coachId) {
-            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請選擇教練";
-            return;
-        }
-        const payload = {
-            work_date: document.getElementById("f-date").value,
-            shift: document.getElementById("f-shift").value,
-            coach_id: Number(coachId),
-        };
+    const SCHEDULE_BY_DAY = {{ schedule_by_day_json | safe }};
+    const COACHES = {{ coaches_json | safe }};
+    const STAFF = {{ staff_json | safe }};
+    const SHIFTS = [
+        { value: "morning", label: "早班 09:00-13:00" },
+        { value: "afternoon", label: "中班 13:00-18:00" },
+        { value: "evening", label: "晚班 18:00-22:00" },
+    ];
+    let currentDay = null;
+
+    function openDayEditor(dayIso) {
+        currentDay = dayIso;
+        document.getElementById("day-modal-title").textContent = dayIso;
+        renderDayEditor();
+        document.getElementById("day-modal").style.display = "flex";
+    }
+
+    function closeDayEditor() {
+        document.getElementById("day-modal").style.display = "none";
+        currentDay = null;
+    }
+
+    function renderDayEditor() {
+        const entries = SCHEDULE_BY_DAY[currentDay] || [];
+        const body = document.getElementById("day-modal-body");
+        body.innerHTML = SHIFTS.map(s => {
+            const shiftEntries = entries.filter(e => e.shift === s.value);
+            const chips = shiftEntries.map(e => `
+                <div class="cal-entry ${e.status === 'published' ? 'published' : 'draft'}" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span>${e.assignee}</span>
+                    <span style="cursor:pointer; color:#c0392b; font-weight:700; padding:0 4px;" onclick="removeEntry(${e.id})">×</span>
+                </div>
+            `).join("") || '<div style="color:#bbb; font-size:12px; margin-bottom:4px;">尚未排班</div>';
+            return `
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">${s.label}</label>
+                    ${chips}
+                    <div class="form-row" style="margin-bottom:0;">
+                        <div>
+                            <select id="add-coach-${s.value}">
+                                <option value="">＋ 新增教練...</option>
+                                ${COACHES.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}
+                            </select>
+                        </div>
+                        <div>
+                            <select id="add-staff-${s.value}">
+                                <option value="">＋ 新增櫃檯/人員...</option>
+                                ${STAFF.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        SHIFTS.forEach(s => {
+            document.getElementById(`add-coach-${s.value}`).onchange = (ev) => {
+                if (ev.target.value) addEntry(s.value, { coach_id: Number(ev.target.value) });
+            };
+            document.getElementById(`add-staff-${s.value}`).onchange = (ev) => {
+                if (ev.target.value) addEntry(s.value, { admin_user_id: Number(ev.target.value) });
+            };
+        });
+    }
+
+    async function addEntry(shift, who) {
+        const payload = { work_date: currentDay, shift, coach_id: null, admin_user_id: null, ...who };
         const res = await fetch("/admin/schedule", {
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
         });
@@ -102,7 +141,17 @@
             location.reload();
         } else {
             const body = await res.json().catch(() => ({}));
-            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+            alert(body.detail || "新增失敗");
+        }
+    }
+
+    async function removeEntry(entryId) {
+        if (!confirm("確定要移除這筆排班嗎？")) return;
+        const res = await fetch(`/admin/schedule/${entryId}/remove`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("移除失敗");
         }
     }
 

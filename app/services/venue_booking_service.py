@@ -27,19 +27,6 @@ def create_venue_booking(
     if party_size not in (1, 2):
         raise VenueBookingError("party_size 只能是 1 或 2")
 
-    existing = (
-        db.query(VenueBooking)
-        .filter(
-            VenueBooking.venue_coach_id == venue_coach_id,
-            VenueBooking.slot_date == slot_date,
-            VenueBooking.slot_start_time == slot_start_time,
-            VenueBooking.status == "booked",
-        )
-        .first()
-    )
-    if existing:
-        raise VenueBookingError("這個時段已經有其他預約了")
-
     if area == "pilates":
         reserve_pilates_capacity(db, slot_date=slot_date, slot_start_time=slot_start_time, units=party_size)
 

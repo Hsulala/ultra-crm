@@ -5,8 +5,10 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, TimestampMixin
 
-# 店長 manager／櫃檯 front_desk／教練 coach。
+# 超級管理者 super_admin／店長 manager／櫃檯 front_desk／教練 coach。
+# super_admin 是唯一能管理後台帳號的角色，其餘權限比照 manager。
 ADMIN_ROLE_LABELS = {
+    "super_admin": "超級管理者",
     "manager": "店長",
     "front_desk": "櫃檯",
     "coach": "教練",
@@ -15,7 +17,11 @@ ADMIN_ROLE_LABELS = {
 
 class AdminUser(Base, TimestampMixin):
     __tablename__ = "admin_users"
-    __table_args__ = (CheckConstraint("role IN ('manager', 'front_desk', 'coach')", name="ck_admin_users_role"),)
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ('super_admin', 'manager', 'front_desk', 'coach')", name="ck_admin_users_role"
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     username: Mapped[str] = mapped_column(String, unique=True, nullable=False)

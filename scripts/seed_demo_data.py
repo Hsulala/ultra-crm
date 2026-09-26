@@ -26,16 +26,27 @@ def seed_venue_coach_demo(db) -> None:
         print("已經有場租教練資料，略過場租教練示範資料。")
         return
 
-    coach = VenueRentalCoach(name="自由教練1")
-    db.add(coach)
+    coaches = []
+    for name in ("自由教練1", "自由教練2", "自由教練3"):
+        coach = VenueRentalCoach(name=name)
+        db.add(coach)
+        coaches.append(coach)
     db.commit()
 
     today = date.today()
     create_venue_booking(
-        db, venue_coach_id=coach.id, customer_name="李先生", customer_phone=None,
+        db, venue_coach_id=coaches[0].id, customer_name="李先生", customer_phone=None,
         party_size=1, slot_date=today, slot_start_time=time(16, 0), area="strength",
     )
-    print("已建立示範場租教練資料：1 位場租教練、今天 1 筆預約。")
+    create_venue_booking(
+        db, venue_coach_id=coaches[0].id, customer_name="陳小姐", customer_phone=None,
+        party_size=1, slot_date=today, slot_start_time=time(16, 0), area="strength",
+    )
+    create_venue_booking(
+        db, venue_coach_id=coaches[1].id, customer_name="黃先生", customer_phone=None,
+        party_size=2, slot_date=today, slot_start_time=time(19, 0), area="strength",
+    )
+    print("已建立示範場租教練資料：3 位場租教練、今天 3 筆預約（含同時段多筆示範）。")
 
 
 def main() -> None:

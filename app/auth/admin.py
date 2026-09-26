@@ -41,8 +41,11 @@ def get_current_admin_user(
 
 
 def require_role(*roles: str):
+    """super_admin 一路暢通，任何原本開放給 manager 的頁面/操作它都能用，
+    不用每個呼叫端都手動列出 'super_admin'。"""
+
     def _check(user: AdminUser = Depends(get_current_admin_user)) -> AdminUser:
-        if user.role not in roles:
+        if user.role != "super_admin" and user.role not in roles:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="沒有權限")
         return user
 
