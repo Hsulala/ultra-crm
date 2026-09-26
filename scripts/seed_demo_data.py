@@ -21,13 +21,17 @@ from app.services.venue_booking_service import create_venue_booking
 
 def seed_venue_coach_demo(db) -> None:
     """場租教練跟一般會員是不同的表，各自獨立判斷是否已經 seed 過，
-    不會因為主要示範資料已經跑過就永遠跳過這塊。"""
+    不會因為主要示範資料已經跑過就永遠跳過這塊。
+
+    名字取自客戶「課堂報表」合約總表裡「教練」欄位、扣掉店內 6 位正職教練後
+    出現頻率最高的幾個外聘教練代號（ELSIE/ELSA/HANK），確認是真的會跟他們
+    租場地帶自己客人的場租教練，不是虛構的示範名字。"""
     if db.query(VenueRentalCoach).count() > 0:
         print("已經有場租教練資料，略過場租教練示範資料。")
         return
 
     coaches = []
-    for name in ("自由教練1", "自由教練2", "自由教練3"):
+    for name in ("ELSIE", "ELSA", "HANK"):
         coach = VenueRentalCoach(name=name)
         db.add(coach)
         coaches.append(coach)
