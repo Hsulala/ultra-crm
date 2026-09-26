@@ -116,3 +116,28 @@ def get_monthly_entries(db: Session, *, year: int, month: int) -> List[RevenueDe
         .order_by(RevenueDetail.entry_date.desc(), RevenueDetail.id.desc())
         .all()
     )
+
+
+# 常用品項/付款方式快選清單：先用現行銷售表裡真的出現過的樣式頂著，
+# 之後資料庫裡打過的品項名稱會自動併進來（見 get_item_name_suggestions），
+# 這份靜態清單只是在資料還很少的時候給個起點。
+COMMON_ITEM_NAMES = [
+    "1V1PT*12", "1V1PT*16", "1V1PT*24", "1V2PT*12", "1V2PT*16", "1V2PT*24",
+    "1V1PL*12", "1V1PL*16", "1V2PL*12",
+    "PT體驗", "PL體驗",
+    "單次會籍", "單月會籍",
+    "場租*8", "場租1V2*10",
+    "運動飲料", "魔爪", "冷萃蒸綠茶(小)", "原萃日式綠茶(大)", "水",
+]
+COMMON_PAYMENT_METHODS = ["現金", "匯款", "信用卡", "LinePay"]
+
+
+def get_item_name_suggestions(db: Session) -> List[str]:
+    used = [row[0] for row in db.query(RevenueDetail.item_name).distinct().all() if row[0]]
+    merged = list(dict.fromkeys(used + COMMON_ITEM_NAMES))  # 保留順序去重，資料庫裡實際用過的排前面
+    return merged
+
+
+def get_payment_method_suggestions(db: Session) -> List[str]:
+    used = [row[0] for row in db.query(RevenueDetail.payment_method).distinct().all() if row[0]]
+    return list(dict.fromkeys(used + COMMON_PAYMENT_METHODS))

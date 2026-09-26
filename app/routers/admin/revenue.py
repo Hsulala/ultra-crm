@@ -11,8 +11,10 @@ from app.services.revenue_service import (
     create_revenue_entry,
     get_coach_class_counts,
     get_daily_summary,
+    get_item_name_suggestions,
     get_monthly_entries,
     get_monthly_summary,
+    get_payment_method_suggestions,
 )
 from app.templating import templates
 
@@ -64,6 +66,8 @@ def revenue_page(
             "today_entries": today_entries,
             "month_entries": month_entries,
             "category_labels": category_labels,
+            "item_name_suggestions": get_item_name_suggestions(db),
+            "payment_method_suggestions": get_payment_method_suggestions(db),
         },
     )
 

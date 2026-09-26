@@ -34,7 +34,10 @@
         </div>
         <div>
             <label>品項名稱</label>
-            <input type="text" id="f-item-name" placeholder="例如 1V1PT*12">
+            <input type="text" id="f-item-name" list="item-name-options" placeholder="打字篩選或直接輸入新品項">
+            <datalist id="item-name-options">
+                {% for name in item_name_suggestions %}<option value="{{ name }}">{% endfor %}
+            </datalist>
         </div>
         <div>
             <label>金額</label>
@@ -42,7 +45,10 @@
         </div>
         <div>
             <label>付款方式</label>
-            <input type="text" id="f-payment-method" placeholder="現金 / 匯款 / 信用卡">
+            <input type="text" id="f-payment-method" list="payment-method-options" placeholder="現金 / 匯款 / 信用卡">
+            <datalist id="payment-method-options">
+                {% for pm in payment_method_suggestions %}<option value="{{ pm }}">{% endfor %}
+            </datalist>
         </div>
         <div style="display:flex; align-items:flex-end;">
             <button class="primary" onclick="createEntry()">新增</button>
