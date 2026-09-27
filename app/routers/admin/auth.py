@@ -74,6 +74,7 @@ def admin_home(
         .all()
     )
     venue_coach_options_json = json.dumps([{"id": vc.id, "name": vc.name} for vc in venue_coach_options])
+    pilates_contract_options_json = json.dumps(grid["pilates_contract_options"])
 
     return templates.TemplateResponse(
         request,
@@ -93,8 +94,9 @@ def admin_home(
             "hours": grid["hours"],
             "columns": grid["columns"],
             "venue_columns": grid["venue_columns"],
-            "pilates_usage": grid["pilates_usage"],
+            "pilates_cells": grid["pilates_cells"],
             "contract_options_json": contract_options_json,
             "venue_coach_options_json": venue_coach_options_json,
+            "pilates_contract_options_json": pilates_contract_options_json,
         },
     )

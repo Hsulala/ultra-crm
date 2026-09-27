@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict
 
 
 class ContractCreateRequest(BaseModel):
-    coach_id: int
+    coach_id: Optional[int] = None
+    venue_coach_id: Optional[int] = None
     member_ids: List[int] = []
     course_type: str = "strength"
     purchase_date: date
@@ -25,7 +26,8 @@ class ContractResponse(BaseModel):
 
     id: int
     contract_no: Optional[str]
-    coach_id: int
+    coach_id: Optional[int]
+    venue_coach_id: Optional[int]
     course_type: str
     purchase_date: date
     unit_price: float
@@ -40,7 +42,7 @@ class MyContractResponse(BaseModel):
 
     id: int
     contract_no: Optional[str]
-    coach_id: int
+    coach_id: Optional[int]
     coach_name: str
     course_type: str
     purchase_date: date

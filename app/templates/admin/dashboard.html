@@ -84,7 +84,15 @@
                 {% endif %}
             </td>
             {% endfor %}
-            <td class="grid-cell" style="text-align:center; color:#888; font-size:12px;">{{ pilates_usage[h] }}/4</td>
+            <td class="grid-cell" id="pcell-{{ '%02d'|format(h.hour) }}">
+                {% for booking in pilates_cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                <button class="grid-add-btn" onclick="showPilatesAddForm('{{ '%02d'|format(h.hour) }}:00:00', this)">＋</button>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -109,6 +117,7 @@
     const TARGET_DATE = "{{ target_date }}";
     const CONTRACT_OPTIONS = {{ contract_options_json | safe }};
     const VENUE_COACH_OPTIONS = {{ venue_coach_options_json | safe }};
+    const PILATES_CONTRACT_OPTIONS = {{ pilates_contract_options_json | safe }};
 
     function showAddForm(coachId, hourStr, btn) {
         const options = CONTRACT_OPTIONS[coachId] || [];
@@ -217,6 +226,40 @@
             location.reload();
         } else {
             alert("取消失敗");
+        }
+    }
+
+    function showPilatesAddForm(hourStr, btn) {
+        if (PILATES_CONTRACT_OPTIONS.length === 0) {
+            alert("目前沒有進行中的皮拉提斯合約可以約課");
+            return;
+        }
+        const select = document.createElement("select");
+        select.style.fontSize = "11px";
+        select.style.width = "100%";
+        select.innerHTML = '<option value="">選合約約課...</option>' +
+            PILATES_CONTRACT_OPTIONS.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
+        select.onchange = () => addPilatesBooking(select.value, hourStr);
+        btn.replaceWith(select);
+        select.focus();
+    }
+
+    async function addPilatesBooking(contractId, hourStr) {
+        if (!contractId) return;
+        const res = await fetch("/admin/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contract_id: Number(contractId),
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
         }
     }
 </script>

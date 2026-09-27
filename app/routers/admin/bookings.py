@@ -32,7 +32,7 @@ def create_booking_endpoint(
             slot_date=payload.slot_date,
             slot_start_time=payload.slot_start_time,
             area=contract.course_type,
-            created_by_id=payload.coach_id,
+            created_by_id=payload.coach_id,  # 店員代教練登打時，這欄只是留誰的畫面點的，可以是 None
         )
     except (BookingError, CapacityError) as exc:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.member_auth import require_member_role
 from app.database import get_db
-from app.models import Member
+from app.models import Member, VenueRentalCoach
 from app.schemas.contract import MyContractResponse
 from app.services.contract_service import get_contracts_for_member, get_members_for_contract
 
@@ -20,7 +20,12 @@ def my_contracts(
     contracts = get_contracts_for_member(db, member.id)
     result = []
     for c in contracts:
-        coach = db.get(Member, c.coach_id)
+        if c.coach_id is not None:
+            coach = db.get(Member, c.coach_id)
+            coach_name = coach.name if coach else "未知教練"
+        else:
+            venue_coach = db.get(VenueRentalCoach, c.venue_coach_id)
+            coach_name = f"{venue_coach.name}（場租）" if venue_coach else "未知教練"
         contract_members = get_members_for_contract(db, c.id)
         other_members = [m for m in contract_members if m.id != member.id]
         result.append(
@@ -28,7 +33,7 @@ def my_contracts(
                 id=c.id,
                 contract_no=c.contract_no,
                 coach_id=c.coach_id,
-                coach_name=coach.name if coach else "未知教練",
+                coach_name=coach_name,
                 course_type=c.course_type,
                 purchase_date=c.purchase_date,
                 total_sessions=c.total_sessions,

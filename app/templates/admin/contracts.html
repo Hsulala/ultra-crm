@@ -21,7 +21,12 @@
             <label>教練</label>
             <select id="f-coach">
                 <option value="">請選擇教練</option>
-                {% for c in coaches %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                <optgroup label="店內教練">
+                    {% for c in coaches %}<option value="m-{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                </optgroup>
+                <optgroup label="場租教練（僅限皮拉提斯）">
+                    {% for c in venue_coaches %}<option value="v-{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                </optgroup>
             </select>
         </div>
         <div>
@@ -128,16 +133,18 @@
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";
 
-        const coachId = document.getElementById("f-coach").value;
+        const coachValue = document.getElementById("f-coach").value;
         const isNewStudent = document.getElementById("f-new-student-toggle").checked;
 
-        if (!coachId) {
+        if (!coachValue) {
             msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請選擇教練";
             return;
         }
+        const [coachKind, coachIdStr] = coachValue.split("-");
 
         const payload = {
-            coach_id: Number(coachId),
+            coach_id: coachKind === "m" ? Number(coachIdStr) : null,
+            venue_coach_id: coachKind === "v" ? Number(coachIdStr) : null,
             course_type: document.getElementById("f-course-type").value,
             purchase_date: document.getElementById("f-purchase-date").value,
             unit_price: Number(document.getElementById("f-unit-price").value || 0),

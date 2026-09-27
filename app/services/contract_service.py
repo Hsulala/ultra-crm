@@ -26,12 +26,13 @@ def generate_next_member_no(db: Session) -> str:
 def create_contract(
     db: Session,
     *,
-    coach_id: int,
     member_ids: List[int],
     course_type: str,
     purchase_date: date,
     unit_price,
     total_sessions: int,
+    coach_id: Optional[int] = None,
+    venue_coach_id: Optional[int] = None,
     contract_no: Optional[str] = None,
     status: str = "active",
     expiry_date: Optional[date] = None,
@@ -41,9 +42,16 @@ def create_contract(
     """new_student_name 有填的話，會先自動建一個新學員（自動產生會員編號），
     再把它併入 member_ids 一起掛上合約——這樣合約頁面就能一次搞定全新客戶成交，
     不用先切去會員頁面建人。目前一次合約最多支援補一位新學員（1對2 情境下，
-    另一位可以是既有會員也可以是這位新學員）。"""
+    另一位可以是既有會員也可以是這位新學員）。
+
+    coach_id / venue_coach_id 恰好擇一：重訓只能是店內正職（coach_id）；
+    皮拉提斯店內正職、場租教練都可能開（見 app/models/contract.py 的說明）。"""
     if course_type not in ("strength", "pilates"):
         raise ContractError("course_type 必須是 strength 或 pilates")
+    if (coach_id is None) == (venue_coach_id is None):
+        raise ContractError("coach_id 跟 venue_coach_id 必須擇一填寫")
+    if venue_coach_id is not None and course_type != "pilates":
+        raise ContractError("場租教練只能開皮拉提斯合約，重訓場地租借請用「場租教練」約課功能")
 
     final_member_ids = list(member_ids)
 
@@ -65,6 +73,7 @@ def create_contract(
     contract = Contract(
         contract_no=contract_no,
         coach_id=coach_id,
+        venue_coach_id=venue_coach_id,
         course_type=course_type,
         purchase_date=purchase_date,
         unit_price=unit_price,
@@ -109,3 +118,14 @@ def get_active_contracts_for_coach(db: Session, coach_id: int) -> List[Contract]
     目前先給教練自己名下登記的合約；之後接上 Phase 3 排班後可以換成
     「當天實際排定要教的學員」，會更準確地涵蓋代課情境。"""
     return db.query(Contract).filter(Contract.coach_id == coach_id, Contract.status == "active").all()
+
+
+def get_active_pilates_contracts(db: Session) -> List[Contract]:
+    """總覽頁皮拉提斯共用欄位的約課挑選清單：不分店內正職／場租教練，
+    只要是「進行中」的皮拉提斯合約都列出來（見 Contract 的說明，皮拉提斯
+    合約兩種教練都可能開）。"""
+    return (
+        db.query(Contract)
+        .filter(Contract.course_type == "pilates", Contract.status == "active")
+        .all()
+    )
