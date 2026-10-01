@@ -14,34 +14,92 @@
             --brand-ink: #1a1a1a;
         }
         * { box-sizing: border-box; }
+        html { --sidebar-width: 220px; --sidebar-width-collapsed: 64px; }
         body {
             font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
             margin: 0; background: #f6f5f2; color: #262626;
         }
-        .topbar {
-            background: var(--brand-orange); color: #fff; display: flex; align-items: center;
-            padding: 0 20px; height: 60px; box-shadow: 0 2px 8px rgba(244,129,36,0.25);
+
+        .sidebar {
+            position: fixed; top: 0; left: 0; bottom: 0; width: var(--sidebar-width);
+            background: var(--brand-orange); color: #fff; display: flex; flex-direction: column;
+            box-shadow: 2px 0 8px rgba(244,129,36,0.25); z-index: 100; transition: width 0.15s ease;
         }
-        .topbar .brand {
-            font-weight: 900; font-size: 17px; margin-right: 36px; white-space: nowrap;
-            letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px;
+        html.sidebar-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
+
+        .sidebar .brand {
+            font-weight: 900; font-size: 16px; white-space: nowrap; letter-spacing: 0.5px;
+            display: flex; align-items: center; gap: 8px; padding: 18px 16px; overflow: hidden;
         }
-        .topbar .brand .dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; display: inline-block; }
-        .topbar nav { display: flex; gap: 2px; flex: 1; overflow-x: auto; }
-        .topbar nav a {
-            color: rgba(255,255,255,0.85); text-decoration: none; padding: 10px 16px;
-            font-size: 14px; font-weight: 500; white-space: nowrap; border-bottom: 3px solid transparent;
+        .sidebar .brand .dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; flex: none; }
+        html.sidebar-collapsed .sidebar .brand span.label { display: none; }
+
+        .sidebar .collapse-toggle {
+            background: rgba(0,0,0,0.15); border: none; color: #fff; cursor: pointer;
+            width: 28px; height: 28px; margin: 0 16px 10px auto; flex: none;
+            font-size: 14px; font-family: inherit; border-radius: 3px;
         }
-        .topbar nav a:hover { color: #fff; }
-        .topbar nav a.active { color: #fff; font-weight: 700; border-bottom: 3px solid var(--brand-ink); }
-        .topbar .user { font-size: 13px; color: rgba(255,255,255,0.9); display: flex; align-items: center; gap: 10px; white-space: nowrap; }
-        .topbar .user button {
+        .sidebar .collapse-toggle:hover { background: rgba(0,0,0,0.3); }
+        html.sidebar-collapsed .sidebar .collapse-toggle { margin: 0 auto 10px; }
+
+        .sidebar nav { display: flex; flex-direction: column; gap: 2px; flex: 1; overflow-y: auto; padding: 0 10px; }
+        .sidebar nav a {
+            color: rgba(255,255,255,0.85); text-decoration: none; padding: 11px 12px;
+            font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden;
+            border-left: 3px solid transparent; display: flex; align-items: center;
+        }
+        .sidebar nav a:hover { color: #fff; background: rgba(0,0,0,0.1); }
+        .sidebar nav a.active { color: #fff; font-weight: 700; background: rgba(0,0,0,0.18); border-left: 3px solid var(--brand-ink); }
+        .sidebar nav a .short { display: none; font-weight: 700; }
+        html.sidebar-collapsed .sidebar nav a .label { display: none; }
+        html.sidebar-collapsed .sidebar nav a .short { display: inline; }
+        html.sidebar-collapsed .sidebar nav a { text-align: center; justify-content: center; padding: 11px 4px; }
+
+        .sidebar .user {
+            font-size: 12px; color: rgba(255,255,255,0.9); padding: 14px 16px;
+            border-top: 1px solid rgba(255,255,255,0.2); overflow: hidden;
+        }
+        .sidebar .user .username { white-space: nowrap; display: block; margin-bottom: 8px; }
+        html.sidebar-collapsed .sidebar .user .username { display: none; }
+        .sidebar .user button {
             background: rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.4); color: #fff;
-            padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit;
+            padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: inherit; width: 100%;
         }
-        .topbar .user button:hover { background: rgba(0,0,0,0.25); }
-        .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; }
-        .container.container-wide { max-width: 1600px; }
+        .sidebar .user button:hover { background: rgba(0,0,0,0.25); }
+
+        .sidebar-backdrop { display: none; }
+
+        .container { max-width: 1080px; margin: 0 auto; padding: 28px 20px 60px; margin-left: calc(var(--sidebar-width) + 20px); transition: margin-left 0.15s ease; }
+        html.sidebar-collapsed .container { margin-left: calc(var(--sidebar-width-collapsed) + 20px); }
+        .container.container-wide { max-width: none; }
+
+        .mobile-topbar { display: none; }
+
+        @media (max-width: 768px) {
+            .mobile-topbar {
+                display: flex; align-items: center; gap: 12px; background: var(--brand-orange); color: #fff;
+                padding: 0 16px; height: 52px; position: sticky; top: 0; z-index: 90;
+            }
+            .mobile-topbar button {
+                background: none; border: none; color: #fff; font-size: 20px; cursor: pointer; padding: 4px 8px;
+            }
+            .mobile-topbar .brand { font-weight: 900; font-size: 15px; }
+            .sidebar {
+                left: calc(-1 * var(--sidebar-width)); width: var(--sidebar-width);
+                transition: left 0.2s ease;
+            }
+            html.sidebar-collapsed .sidebar { width: var(--sidebar-width); }
+            html.mobile-nav-open .sidebar { left: 0; }
+            html.mobile-nav-open .sidebar-backdrop {
+                display: block; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 99;
+            }
+            html.sidebar-collapsed .sidebar .brand span.label,
+            html.sidebar-collapsed .sidebar nav a .label,
+            html.sidebar-collapsed .sidebar .user .username { display: inline; }
+            .sidebar nav a .short { display: none !important; }
+            .sidebar .collapse-toggle { display: none; }
+            .container, html.sidebar-collapsed .container { margin-left: 0; padding: 20px 16px 50px; }
+        }
         h1.page-title { font-size: 24px; font-weight: 900; margin: 0 0 20px; color: var(--brand-ink); }
 
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
@@ -84,34 +142,55 @@
     </style>
 </head>
 <body>
-    <div class="topbar">
-        <div class="brand"><span class="dot"></span>ULTRA FITNESS 後台</div>
+    <div class="mobile-topbar">
+        <button onclick="toggleMobileNav()" aria-label="選單">☰</button>
+        <div class="brand">ULTRA FITNESS 後台</div>
+    </div>
+    <div class="sidebar-backdrop" onclick="toggleMobileNav()"></div>
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="dot"></span><span class="label">ULTRA FITNESS 後台</span>
+        </div>
+        <button class="collapse-toggle" onclick="toggleSidebarCollapse()" title="收起/展開選單">«</button>
         <nav>
-            <a href="/admin/" class="{% if active == 'dashboard' %}active{% endif %}">總覽</a>
-            <a href="/admin/members/page" class="{% if active == 'members' %}active{% endif %}">會員</a>
-            <a href="/admin/contracts/page" class="{% if active == 'contracts' %}active{% endif %}">合約</a>
-            <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}">紀錄課程</a>
-            <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}">營收</a>
-            <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}">排班</a>
+            <a href="/admin/" class="{% if active == 'dashboard' %}active{% endif %}" title="總覽"><span class="short">總</span><span class="label">總覽</span></a>
+            <a href="/admin/members/page" class="{% if active == 'members' %}active{% endif %}" title="會員"><span class="short">會</span><span class="label">會員</span></a>
+            <a href="/admin/contracts/page" class="{% if active == 'contracts' %}active{% endif %}" title="合約"><span class="short">合</span><span class="label">合約</span></a>
+            <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}" title="紀錄課程"><span class="short">紀</span><span class="label">紀錄課程</span></a>
+            <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}" title="營收"><span class="short">營</span><span class="label">營收</span></a>
+            <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}" title="排班"><span class="short">排</span><span class="label">排班</span></a>
             {% if current_user.role in ("manager", "front_desk", "super_admin") %}
-            <a href="/admin/venue-coaches/page" class="{% if active == 'venue-coaches' %}active{% endif %}">場租教練</a>
+            <a href="/admin/venue-coaches/page" class="{% if active == 'venue-coaches' %}active{% endif %}" title="場租教練"><span class="short">場</span><span class="label">場租教練</span></a>
             {% endif %}
             {% if current_user.role in ("manager", "super_admin") %}
-            <a href="/admin/settings/items/page" class="{% if active == 'settings' %}active{% endif %}">設定</a>
+            <a href="/admin/settings/items/page" class="{% if active == 'settings' %}active{% endif %}" title="設定"><span class="short">設</span><span class="label">設定</span></a>
             {% endif %}
             {% if current_user.role == "super_admin" %}
-            <a href="/admin/accounts/page" class="{% if active == 'accounts' %}active{% endif %}">帳號管理</a>
+            <a href="/admin/accounts/page" class="{% if active == 'accounts' %}active{% endif %}" title="帳號管理"><span class="short">帳</span><span class="label">帳號管理</span></a>
             {% endif %}
         </nav>
         <div class="user">
-            <span>{{ current_user.username }}（{{ ADMIN_ROLE_LABELS[current_user.role] }}）</span>
+            <span class="username">{{ current_user.username }}（{{ ADMIN_ROLE_LABELS[current_user.role] }}）</span>
             <form method="post" action="/admin/logout" style="margin:0;">
                 <button type="submit">登出</button>
             </form>
         </div>
-    </div>
+    </aside>
     <div class="container {% block container_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </div>
+    <script>
+        (function () {
+            var collapsed = localStorage.getItem("sidebarCollapsed") === "1";
+            if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+        })();
+        function toggleSidebarCollapse() {
+            var isCollapsed = document.documentElement.classList.toggle("sidebar-collapsed");
+            localStorage.setItem("sidebarCollapsed", isCollapsed ? "1" : "0");
+        }
+        function toggleMobileNav() {
+            document.documentElement.classList.toggle("mobile-nav-open");
+        }
+    </script>
 </body>
 </html>
