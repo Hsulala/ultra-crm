@@ -19,6 +19,7 @@ def create_revenue_entry(
     coach_id: Optional[int] = None,
     content: Optional[str] = None,
     contract_id: Optional[int] = None,
+    remittance_last5: Optional[str] = None,
     entered_by_id: int,
 ) -> RevenueDetail:
     entry = RevenueDetail(
@@ -28,6 +29,7 @@ def create_revenue_entry(
         coach_id=coach_id,
         content=content,
         payment_method=payment_method,
+        remittance_last5=remittance_last5,
         amount=amount,
         contract_id=contract_id,
         entered_by_id=entered_by_id,

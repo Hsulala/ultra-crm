@@ -29,6 +29,10 @@
         </datalist>
         <div class="re-quick" id="re-quick-pay"></div>
     </div>
+    <div style="flex:0 0 130px; min-width:110px; display:none;" id="re-last5-wrap">
+        <label>匯款末五碼</label>
+        <input type="text" id="re-last5" inputmode="numeric" maxlength="5" placeholder="5 位數字">
+    </div>
     <div style="display:flex; align-items:flex-end; flex:0 0 auto;">
         <button class="primary" id="re-submit">新增</button>
     </div>
@@ -88,9 +92,19 @@
     ["現金", "匯款", "信用卡"].forEach((pm) => {
         const b = document.createElement("button");
         b.type = "button"; b.textContent = pm;
-        b.onclick = () => { $("re-payment").value = pm; };
+        b.onclick = () => { $("re-payment").value = pm; syncLast5(); };
         $("re-quick-pay").appendChild(b);
     });
+
+    // 選匯款／轉帳時才出現末五碼欄位
+    function syncLast5() {
+        const on = /匯款|轉帳/.test($("re-payment").value);
+        $("re-last5-wrap").style.display = on ? "block" : "none";
+        if (!on) $("re-last5").value = "";
+    }
+    $("re-payment").addEventListener("input", syncLast5);
+    $("re-payment").addEventListener("change", syncLast5);
+    $("re-last5").addEventListener("input", (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 5); });
 
     function highlight(name, tokens) {
         let out = esc(name);
@@ -184,7 +198,13 @@
             item_name: picked ? picked.name : "",
             amount: Number($("re-amount").value || 0),
             payment_method: $("re-payment").value.trim(),
+            remittance_last5: $("re-last5").value.trim() || null,
         };
+        if (payload.remittance_last5 && payload.remittance_last5.length !== 5) {
+            msg.className = "msg error"; msg.style.display = "block";
+            msg.textContent = "匯款末五碼必須是 5 位數字，沒有的話請留空";
+            return;
+        }
         if (!payload.item_name || !payload.payment_method || !payload.amount) {
             msg.className = "msg error"; msg.style.display = "block";
             msg.textContent = "請選擇品項，並填寫金額與付款方式";

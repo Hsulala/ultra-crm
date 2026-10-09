@@ -116,7 +116,7 @@
             <td>{{ row.created_local.strftime("%m/%d %H:%M") }}</td>
             <td>{{ row.entry.item_name }}</td>
             <td>${{ row.entry.amount|ntd }}</td>
-            <td>{{ row.entry.payment_method }}</td>
+            <td>{{ row.entry.payment_method }}{% if row.entry.remittance_last5 %}（末五碼 {{ row.entry.remittance_last5 }}）{% endif %}</td>
             <td>{{ row.entry.entry_date }}</td>
             <td>{% if row.backfilled %}<span class="flag">補登／日期與輸入日不同</span>{% endif %}</td>
         </tr>

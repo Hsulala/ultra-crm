@@ -4,6 +4,25 @@
 {% block content %}
 <h1 class="page-title">總覽</h1>
 
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">今日營收</div>
+        <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">今日現金收款</div>
+        <div class="value">${{ "{:,.0f}".format(today_cash_sales) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">今日約課（堂）</div>
+        <div class="value">{{ today_booking_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">本月營收</div>
+        <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
+    </div>
+</div>
+
 {% if can_work %}
 <div class="panel">
     <h2>今日工作台（{{ today }}）</h2>
@@ -28,7 +47,7 @@
             {% if today_entries %}
             <table class="wb-table">
                 {% for e in today_entries %}
-                <tr><td>{{ e.item_name }}<span class="wb-cat">{{ category_labels.get(e.item_category, e.item_category) }}</span></td><td class="r">${{ "{:,.0f}".format(e.amount) }}</td><td class="r">{{ e.payment_method }}</td></tr>
+                <tr><td>{{ e.item_name }}<span class="wb-cat">{{ category_labels.get(e.item_category, e.item_category) }}</span></td><td class="r">${{ "{:,.0f}".format(e.amount) }}</td><td class="r">{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td></tr>
                 {% endfor %}
             </table>
             {% else %}
@@ -113,29 +132,6 @@
     {% else %}
     <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
     {% endif %}
-</div>
-
-<div class="stat-grid">
-    <div class="stat-card">
-        <div class="label">今日營收</div>
-        <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">本月營收</div>
-        <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">在籍學員</div>
-        <div class="value">{{ student_count }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">教練人數</div>
-        <div class="value">{{ coach_count }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">進行中合約</div>
-        <div class="value">{{ active_contract_count }}</div>
-    </div>
 </div>
 
 <style>

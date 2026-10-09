@@ -4,11 +4,12 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import RedirectResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.admin import get_current_admin_user, verify_password
 from app.database import get_db
-from app.models import AdminUser, Contract, Member, RevenueDetail, VenueRentalCoach
+from app.models import AdminUser, Booking, RevenueDetail, VenueBooking, VenueRentalCoach
 from app.services.booking_service import build_day_grid
 from app.services import cash_service
 from app.services.item_catalog_service import get_items_grouped_by_category
@@ -61,9 +62,19 @@ def admin_home(
     daily = get_daily_summary(db, entry_date=today)
     monthly = get_monthly_summary(db, year=today.year, month=today.month)
 
-    student_count = db.query(Member).filter(Member.role == "student").count()
-    coach_count = db.query(Member).filter(Member.role == "coach").count()
-    active_contract_count = db.query(Contract).filter(Contract.status == "active").count()
+    # 今日約課堂數（含店內教練、皮拉提斯與場租教練，不含已取消）
+    today_booking_count = (
+        db.query(Booking).filter(Booking.slot_date == today, Booking.status != "cancelled").count()
+        + db.query(VenueBooking).filter(VenueBooking.slot_date == today, VenueBooking.status != "cancelled").count()
+    )
+    today_cash_sales = (
+        db.query(func.coalesce(func.sum(RevenueDetail.amount), 0))
+        .filter(
+            RevenueDetail.entry_date == today,
+            func.lower(func.trim(RevenueDetail.payment_method)).in_(cash_service.CASH_METHOD_ALIASES),
+        )
+        .scalar()
+    )
 
     grid = build_day_grid(db, target_date)
     contract_options_json = json.dumps(
@@ -109,9 +120,8 @@ def admin_home(
             **workbench,
             "today_revenue": daily["total"],
             "month_revenue": monthly["total"],
-            "student_count": student_count,
-            "coach_count": coach_count,
-            "active_contract_count": active_contract_count,
+            "today_booking_count": today_booking_count,
+            "today_cash_sales": float(today_cash_sales or 0),
             "target_date": target_date,
             "prev_date": target_date - timedelta(days=1),
             "next_date": target_date + timedelta(days=1),
