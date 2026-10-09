@@ -1,0 +1,222 @@
+{% extends "admin/base.html" %}
+{% block title %}結帳明細 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<div style="margin-bottom:10px;"><a href="/admin/cash/page" class="link">‹ 回現金對帳</a></div>
+<h1 class="page-title">結帳明細：{{ closing.business_date }} {{ SHIFT_LABELS[closing.shift] }}</h1>
+
+{% if closing.voided_at %}
+<div class="notice warn">
+    <b>這筆結帳已作廢</b>（{{ closing.voided_at|tpe }}，{{ users.get(closing.voided_by_id, "-") }}）：{{ closing.void_reason }}
+</div>
+{% endif %}
+
+{% if detail.live.changed %}
+<div class="notice warn">
+    <b>結帳之後，這段時間的現金帳被動過。</b>
+    以目前的帳重算，應有現金是 ${{ detail.live.expected_cash|ntd }}，結帳當時是 ${{ closing.expected_cash|ntd }}
+    （差 {% if detail.live.delta > 0 %}＋{% else %}−{% endif %}${{ detail.live.delta|abs|ntd }}）。
+    常見原因是某筆現金異動結帳後才被作廢，請對照下方「現金異動」裡標示「結帳後作廢」的項目。
+</div>
+{% endif %}
+
+{% if detail.float_mismatch %}
+<div class="notice warn">
+    收走現金之後，留在抽屜的是 ${{ closing.remaining_cash|ntd }}，但固定零用金是 ${{ closing.cash_float_snapshot|ntd }}，兩者不一致。
+</div>
+{% endif %}
+
+{% if detail.nonstandard_methods %}
+<div class="notice warn">
+    這段時間的收款出現非標準的付款方式：<b>{{ detail.nonstandard_methods|join("、") }}</b>。
+    系統只把「現金」算進應有現金；如果這些其實是現金，應有現金會被少算。
+</div>
+{% endif %}
+
+<div class="panel">
+    <h2>結帳結果</h2>
+    <div style="margin-bottom:14px;">
+        {% if status == 'balanced' %}<span class="shift-cell balanced big">相符，沒有差額</span>
+        {% elif status == 'short' %}<span class="shift-cell short big">短少 ${{ closing.variance|abs|ntd }}</span>
+        {% else %}<span class="shift-cell over big">多出 ${{ closing.variance|abs|ntd }}</span>{% endif %}
+        {% if closing.reviewed_at %}<span class="flag soft" style="font-size:12px;">店長已覆核（{{ users.get(closing.reviewed_by_id, "-") }}，{{ closing.reviewed_at|tpe }}）</span>{% endif %}
+    </div>
+    <table class="calc">
+        <tr><td>期初現金（上一次結帳留在抽屜的）</td><td class="num">${{ closing.opening_cash|ntd }}</td></tr>
+        <tr><td>＋ 這段時間的現金收款（營收流水帳）</td><td class="num">${{ closing.cash_sales|ntd }}</td></tr>
+        <tr><td>＋ 現金收入類異動</td><td class="num">${{ closing.movements_in|ntd }}</td></tr>
+        <tr><td>− 現金支出類異動（零用金、退費、代墊）</td><td class="num">${{ closing.movements_out|ntd }}</td></tr>
+        <tr class="sum"><td>＝ 應有現金</td><td class="num">${{ closing.expected_cash|ntd }}</td></tr>
+        <tr class="sum"><td>實點現金</td><td class="num">${{ closing.counted_cash|ntd }}</td></tr>
+        <tr class="sum"><td>差額（實點 − 應有）</td><td class="num">{% if closing.variance > 0 %}＋${{ closing.variance|ntd }}{% elif closing.variance < 0 %}−${{ closing.variance|abs|ntd }}{% else %}$0{% endif %}</td></tr>
+    </table>
+    <div style="font-size:12px; color:#888; margin-top:10px; line-height:1.8;">
+        計算區間：{{ closing.interval_start|tpe }} → {{ closing.closed_at|tpe }}
+        結帳人：{{ users.get(closing.closed_by_id, "-") }}<br>
+        點完後收走 ${{ closing.collected_amount|ntd }}，留在抽屜 ${{ closing.remaining_cash|ntd }}（成為下一班的期初）
+    </div>
+</div>
+
+<div class="panel">
+    <h2>說明與覆核</h2>
+    <div id="note-msg" class="msg"></div>
+    {% if closing.note %}
+    <div class="notice" style="margin-bottom:10px;"><b>結帳說明：</b>{{ closing.note }}</div>
+    {% endif %}
+    {% if closing.review_note %}
+    <div class="notice" style="margin-bottom:10px;"><b>店長覆核備註：</b>{{ closing.review_note }}</div>
+    {% endif %}
+
+    {% if can_add_note and not closing.voided_at %}
+    <div class="form-row">
+        <div style="flex:3;">
+            <label>{% if closing.note %}修改結帳說明{% else %}補充說明（例如差額的原因）{% endif %}</label>
+            <input type="text" id="note-input" value="{{ closing.note or '' }}">
+        </div>
+        <div style="display:flex; align-items:flex-end;"><button class="primary" onclick="saveNote()">儲存說明</button></div>
+    </div>
+    {% endif %}
+
+    {% if is_manager and not closing.voided_at %}
+    <div class="form-row">
+        <div style="flex:3;">
+            <label>店長覆核備註（選填）</label>
+            <input type="text" id="review-input" value="{{ closing.review_note or '' }}">
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:8px;">
+            <button class="primary" onclick="reviewClosing()">{% if closing.reviewed_at %}更新覆核{% else %}標示已覆核{% endif %}</button>
+        </div>
+    </div>
+    <div style="margin-top:6px;">
+        <a href="#" class="link" style="color:#c0392b;" onclick="voidClosing(); return false;">作廢這筆結帳（點錯重點用，只能作廢最新一筆）</a>
+    </div>
+    {% endif %}
+</div>
+
+<div class="panel">
+    <h2>點鈔面額</h2>
+    {% if closing.denominations %}
+    <table>
+        <tr><th>面額</th><th>張數</th><th>小計</th></tr>
+        {% for denom, count in denomination_rows %}
+        <tr><td>${{ "{:,}".format(denom) }}</td><td>{{ count }}</td><td>${{ "{:,}".format(denom * count) }}</td></tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">沒有填寫面額（實點 $0）</div>
+    {% endif %}
+</div>
+
+<div class="panel">
+    <h2>這段時間的現金收款（共 {{ detail.sale_rows|length }} 筆）</h2>
+    {% if detail.sale_rows %}
+    <table>
+        <tr><th>輸入時間</th><th>品項</th><th>金額</th><th>付款方式</th><th>收款日期</th><th></th></tr>
+        {% for row in detail.sale_rows %}
+        <tr>
+            <td>{{ row.created_local.strftime("%m/%d %H:%M") }}</td>
+            <td>{{ row.entry.item_name }}</td>
+            <td>${{ row.entry.amount|ntd }}</td>
+            <td>{{ row.entry.payment_method }}</td>
+            <td>{{ row.entry.entry_date }}</td>
+            <td>{% if row.backfilled %}<span class="flag">補登／日期與輸入日不同</span>{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">這段時間沒有現金收款</div>
+    {% endif %}
+    {% if detail.non_cash_methods %}
+    <div style="font-size:12px; color:#888; margin-top:10px;">
+        同時段非現金收款（不計入應有現金）：
+        {% for method, count in detail.non_cash_methods.items() %}{{ method }} {{ count }} 筆{% if not loop.last %}、{% endif %}{% endfor %}
+    </div>
+    {% endif %}
+</div>
+
+<div class="panel">
+    <h2>這段時間的現金異動（共 {{ detail.movement_rows|length }} 筆）</h2>
+    {% if detail.movement_rows %}
+    <table>
+        <tr><th>登記時間</th><th>類型</th><th>金額</th><th>對象</th><th>用途</th><th>登記人</th><th>狀態</th></tr>
+        {% for row in detail.movement_rows %}
+        {% set m = row.movement %}
+        <tr {% if m.voided_at %}style="color:#aaa;"{% endif %}>
+            <td>{{ row.created_local.strftime("%m/%d %H:%M") }}</td>
+            <td>{{ MOVEMENT_TYPE_LABELS.get(m.movement_type, m.movement_type) }}</td>
+            <td>{% if m.direction == 'out' %}−{% else %}＋{% endif %}${{ m.amount|ntd }}</td>
+            <td>{{ m.counterparty or "-" }}</td>
+            <td>{{ m.description or "-" }}</td>
+            <td>{{ users.get(m.entered_by_id, "-") }}</td>
+            <td>
+                {% if m.voided_at %}
+                <span class="badge badge-refunded">已作廢</span>
+                {% if row.voided_after_close %}<span class="flag">結帳後作廢</span>{% endif %}
+                <div style="font-size:12px;">{{ m.voided_at|tpe }}　{{ users.get(m.voided_by_id, "-") }}：{{ m.void_reason }}</div>
+                {% else %}-{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">這段時間沒有現金異動</div>
+    {% endif %}
+</div>
+
+<style>
+    .notice { background:#fff4eb; border-left:4px solid #f48124; color:#645242; font-size:13px; line-height:1.7; padding:10px 14px; margin-bottom:14px; }
+    .notice.warn { background:#fdeaea; border-left-color:#c0392b; color:#8a2a20; }
+    .link { color:#f48124; font-size:13px; font-weight:700; text-decoration:none; }
+    .link:hover { text-decoration:underline; }
+    .flag { display:inline-block; font-size:11px; padding:1px 6px; margin-left:6px; background:#fdeaea; color:#c0392b; font-weight:700; }
+    .flag.soft { background:#fff1e2; color:#d96a10; }
+    .shift-cell { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; }
+    .shift-cell.big { font-size:16px; padding:6px 14px; }
+    .shift-cell.balanced { background:#e3f7e9; color:#1a8a3f; }
+    .shift-cell.short { background:#fdeaea; color:#c0392b; }
+    .shift-cell.over { background:#fff1e2; color:#d96a10; }
+    table.calc td { padding:8px 10px; }
+    table.calc td.num { text-align:right; font-weight:700; width:160px; }
+    table.calc tr.sum td { border-top:2px solid #f48124; font-size:15px; }
+    @media (max-width: 768px) {
+        .panel { overflow-x: auto; }
+        .panel table th, .panel table td { white-space: nowrap; }
+        .panel table.calc td { white-space: normal; }
+        .panel .notice { white-space: normal; }
+    }
+</style>
+
+<script>
+    function showMsg(ok, text) {
+        const el = document.getElementById("note-msg");
+        el.className = "msg " + (ok ? "success" : "error");
+        el.style.display = "block";
+        el.textContent = text;
+    }
+    async function postJson(url, payload) {
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(Array.isArray(body.detail) ? "輸入格式不正確" : (body.detail || "操作失敗"));
+        return body;
+    }
+    async function saveNote() {
+        try {
+            await postJson("/admin/cash/closings/{{ closing.id }}/note", { note: document.getElementById("note-input").value });
+            location.reload();
+        } catch (err) { showMsg(false, err.message); }
+    }
+    async function reviewClosing() {
+        try {
+            await postJson("/admin/cash/closings/{{ closing.id }}/review", { note: document.getElementById("review-input").value });
+            location.reload();
+        } catch (err) { showMsg(false, err.message); }
+    }
+    async function voidClosing() {
+        const reason = prompt("請輸入作廢原因（會留下紀錄，作廢後這個班次可以重新結帳）：");
+        if (reason === null) return;
+        try {
+            await postJson("/admin/cash/closings/{{ closing.id }}/void", { reason });
+            location.reload();
+        } catch (err) { showMsg(false, err.message); }
+    }
+</script>
+{% endblock %}

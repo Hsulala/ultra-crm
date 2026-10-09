@@ -1,0 +1,356 @@
+{% extends "admin/base.html" %}
+{% block title %}現金對帳 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">現金對帳</h1>
+
+{% macro shift_cell(info) %}
+    {% if info.closing %}
+        <a href="/admin/cash/closings/{{ info.closing.id }}/page" class="shift-cell {{ info.status }}">
+            {% if info.status == 'balanced' %}相符
+            {% elif info.status == 'short' %}短少 ${{ info.closing.variance|abs|ntd }}
+            {% else %}多出 ${{ info.closing.variance|abs|ntd }}{% endif %}
+        </a>
+        {% if info.live_changed %}<span class="flag">結帳後帳目有異動</span>{% endif %}
+        {% if info.status != 'balanced' and not info.closing.reviewed_at %}<span class="flag soft">待覆核</span>{% endif %}
+    {% elif info.status == 'missing' %}
+        <span class="shift-cell missing">未結帳</span>
+    {% else %}
+        <span class="muted">—</span>
+    {% endif %}
+{% endmacro %}
+
+{% if cash_float is none %}
+<div class="notice warn">
+    尚未設定「每天固定留在抽屜的零用金」，設定之後才能開始結帳。
+    {% if not is_manager %}請店長到這個頁面設定。{% endif %}
+</div>
+{% endif %}
+
+{% if is_manager and overview %}
+<div class="stat-grid cash-stats">
+    <div class="stat-card"><div class="label">近 30 天短少合計</div><div class="value">${{ overview.total_short|ntd }}</div></div>
+    <div class="stat-card"><div class="label">近 30 天多出合計</div><div class="value">${{ overview.total_over|ntd }}</div></div>
+    <div class="stat-card"><div class="label">有差額的班次</div><div class="value">{{ overview.unbalanced_count }}</div></div>
+    <div class="stat-card"><div class="label">待覆核差額</div><div class="value">{{ overview.unreviewed_count }}</div></div>
+    <div class="stat-card"><div class="label">漏點（未結帳）班次</div><div class="value">{{ overview.missing_count }}</div></div>
+    <div class="stat-card"><div class="label">結帳後帳目有異動</div><div class="value">{{ overview.changed_count }}</div></div>
+</div>
+{% endif %}
+
+<div class="panel">
+    <h2>今日班次（{{ today }}）</h2>
+    <table>
+        <tr>
+            <th>班次</th><th>狀態</th><th>結帳人</th><th>結帳時間</th>
+            {% if is_manager %}<th>結果</th>{% endif %}
+            <th></th>
+        </tr>
+        {% for shift in SHIFT_ORDER %}
+        {% set c = day_status[shift] %}
+        <tr>
+            <td>{{ SHIFT_LABELS[shift] }}{% if shift == current_shift %} <span class="flag soft">目前班次</span>{% endif %}</td>
+            {% if c %}
+            <td><span class="badge badge-active">已結帳</span></td>
+            <td>{{ users.get(c.closed_by_id, "-") }}</td>
+            <td>{{ c.closed_at|tpe("%H:%M") }}</td>
+            {% if is_manager %}
+            <td>
+                {% if c.variance == 0 %}<span class="shift-cell balanced">相符</span>
+                {% elif c.variance < 0 %}<span class="shift-cell short">短少 ${{ c.variance|abs|ntd }}</span>
+                {% else %}<span class="shift-cell over">多出 ${{ c.variance|abs|ntd }}</span>{% endif %}
+            </td>
+            {% endif %}
+            <td>{% if is_manager or c.closed_by_id == current_user.id %}<a href="/admin/cash/closings/{{ c.id }}/page" class="link">查看明細</a>{% endif %}</td>
+            {% else %}
+            <td><span class="muted">尚未結帳</span></td><td>-</td><td>-</td>
+            {% if is_manager %}<td>-</td>{% endif %}
+            <td><a href="#close-form" class="link" onclick="pickShift('{{ shift }}')">去結帳</a></td>
+            {% endif %}
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<div class="panel" id="close-form">
+    <h2>班次結帳（交接點錢）</h2>
+    <div class="notice">
+        <b>結帳前請先確認：</b>這個班所有收款都已經輸入「營收」、所有零用金支出／退費／代墊都已經登記在下方「現金異動」。
+        送出前系統<b>不會</b>顯示應有金額，請照實際點到的張數填寫；送出後無法自行修改，點錯請店長作廢後重點。
+    </div>
+    <div id="close-msg" class="msg"></div>
+
+    <div class="form-row">
+        <div>
+            <label>日期</label>
+            <input type="date" id="c-date" value="{{ today }}" max="{{ today }}">
+        </div>
+        <div>
+            <label>班次</label>
+            <select id="c-shift">
+                {% for shift in SHIFT_ORDER %}
+                <option value="{{ shift }}" {% if shift == current_shift %}selected{% endif %}>{{ SHIFT_LABELS[shift] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <label>面額張數（抽屜內全部現金，含零用金）</label>
+    <div class="denom-grid">
+        {% for d in denominations %}
+        <div class="denom-item">
+            <span class="denom-label">${{ "{:,}".format(d) }}</span>
+            <input type="number" min="0" step="1" inputmode="numeric" id="d-{{ d }}" placeholder="0" oninput="updateTotal()">
+            <span class="denom-sub" id="s-{{ d }}">$0</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="total-line">實點合計：<span id="c-total">$0</span></div>
+
+    <div class="form-row">
+        <div>
+            <label>點完後從抽屜收走的現金{% if cash_float is not none %}（留零用金 ${{ cash_float|ntd }}）{% endif %}</label>
+            <input type="number" min="0" step="1" id="c-collected" placeholder="0">
+            {% if cash_float is not none %}
+            <div style="font-size:11px; margin-top:4px;"><a href="#" class="link" onclick="suggestCollected(); return false;">帶入建議值（合計 − 零用金）</a></div>
+            {% endif %}
+        </div>
+        <div style="flex:2;">
+            <label>備註（選填，之後看到差額也可以補充說明）</label>
+            <input type="text" id="c-note" placeholder="例如：中班有教練臨時換零錢">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="submitClosing()" {% if cash_float is none %}disabled{% endif %}>送出結帳</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>現金異動登記（零用金支出、退費、代墊）</h2>
+    <div class="notice">只登記「抽屜現金」的進出：收款請輸入「營收」，這裡不要重複登記。</div>
+    <div id="mv-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>類型</label>
+            <select id="m-type">
+                {% for key, label in MOVEMENT_TYPE_LABELS.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>金額</label>
+            <input type="number" min="1" step="1" id="m-amount" placeholder="金額">
+        </div>
+        <div>
+            <label>對象（教練／廠商）</label>
+            <input type="text" id="m-counterparty" list="m-counterparty-options" placeholder="選填">
+            <datalist id="m-counterparty-options">
+                {% for name in counterparty_suggestions %}<option value="{{ name }}">{% endfor %}
+            </datalist>
+        </div>
+        <div style="flex:2;">
+            <label>用途／原因（必填）</label>
+            <input type="text" id="m-description" placeholder="例如：買洗手液、退單次入場、代墊停車費">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="submitMovement()">登記</button>
+        </div>
+    </div>
+
+    <h2 style="margin-top:20px;">今日異動</h2>
+    {% if today_movements %}
+    <table>
+        <tr><th>時間</th><th>類型</th><th>金額</th><th>對象</th><th>用途</th><th>登記人</th><th>狀態</th></tr>
+        {% for m in today_movements %}
+        <tr {% if m.voided_at %}style="color:#aaa; text-decoration:line-through;"{% endif %}>
+            <td>{{ m.created_at|tpe("%H:%M") }}</td>
+            <td>{{ MOVEMENT_TYPE_LABELS.get(m.movement_type, m.movement_type) }}</td>
+            <td>{% if m.direction == 'out' %}−{% else %}＋{% endif %}${{ m.amount|ntd }}</td>
+            <td>{{ m.counterparty or "-" }}</td>
+            <td>{{ m.description or "-" }}</td>
+            <td>{{ users.get(m.entered_by_id, "-") }}</td>
+            <td style="text-decoration:none;">
+                {% if m.voided_at %}
+                <span class="badge badge-refunded">已作廢</span> <span style="font-size:12px; color:#888;">{{ m.void_reason }}</span>
+                {% elif is_manager %}
+                <a href="#" class="link" onclick="voidMovement({{ m.id }}); return false;">作廢</a>
+                {% else %}-{% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">今日尚無現金異動</div>
+    {% endif %}
+</div>
+
+{% if is_manager %}
+<div class="panel">
+    <h2>固定零用金</h2>
+    <div class="notice">每天結帳完固定留在抽屜、不收走的現金金額。整個系統第一次結帳時，會以這個金額當作期初現金。</div>
+    <div id="float-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>固定零用金（元）</label>
+            <input type="number" min="0" step="1" id="float-amount" value="{% if cash_float is not none %}{{ cash_float|ntd|replace(',', '') }}{% endif %}">
+        </div>
+        <div style="display:flex; align-items:flex-end;"><button class="primary" onclick="saveFloat()">儲存</button></div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>近 30 天結帳總覽</h2>
+    <div class="notice">
+        每一次結帳都接在上一次後面計算，所以差額會落在發生的那一班。
+        「結帳後帳目有異動」代表結帳之後，那段時間的現金帳被動過（例如異動被作廢），請點進去看明細。
+    </div>
+    {% if overview and overview.days %}
+    <table>
+        <tr><th>日期</th>{% for shift in SHIFT_ORDER %}<th>{{ SHIFT_LABELS[shift] }}</th>{% endfor %}</tr>
+        {% for day in overview.days %}
+        <tr>
+            <td>{{ day.date }}</td>
+            {% for shift in SHIFT_ORDER %}<td>{{ shift_cell(day.shifts[shift]) }}</td>{% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">近 30 天尚無結帳或收款紀錄</div>
+    {% endif %}
+</div>
+{% endif %}
+
+<style>
+    .notice { background:#fff4eb; border-left:4px solid #f48124; color:#645242; font-size:13px; line-height:1.7; padding:10px 14px; margin-bottom:14px; }
+    .notice.warn { background:#fdeaea; border-left-color:#c0392b; color:#8a2a20; }
+    .link { color:#f48124; font-size:13px; font-weight:700; text-decoration:none; }
+    .link:hover { text-decoration:underline; }
+    .muted { color:#aaa; }
+    .flag { display:inline-block; font-size:11px; padding:1px 6px; margin-left:6px; background:#fdeaea; color:#c0392b; font-weight:700; }
+    .flag.soft { background:#fff1e2; color:#d96a10; }
+    .shift-cell { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; text-decoration:none; }
+    .shift-cell.balanced { background:#e3f7e9; color:#1a8a3f; }
+    .shift-cell.short { background:#fdeaea; color:#c0392b; }
+    .shift-cell.over { background:#fff1e2; color:#d96a10; }
+    .shift-cell.missing { border:1px dashed #c0392b; color:#c0392b; }
+    .denom-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; margin:8px 0 10px; }
+    .denom-item { display:flex; align-items:center; gap:8px; border:1px solid #eee; padding:6px 10px; background:#fafafa; }
+    .denom-item .denom-label { width:62px; font-weight:700; color:#333; }
+    .denom-item input { width:70px; padding:6px 8px; }
+    .denom-item .denom-sub { font-size:12px; color:#888; min-width:56px; text-align:right; }
+    .total-line { font-size:18px; font-weight:700; margin:6px 0 16px; }
+    .total-line span { color:#f48124; font-size:22px; }
+    @media (min-width: 900px) { .cash-stats { grid-template-columns: repeat(3, 1fr); } }
+    /* 手機：表格欄位不要被擠成直排，寬度不夠就讓面板橫向捲動 */
+    @media (max-width: 768px) {
+        .panel { overflow-x: auto; }
+        .panel table th, .panel table td { white-space: nowrap; }
+        .panel .notice { white-space: normal; }
+    }
+</style>
+
+<script>
+    const DENOMS = {{ denominations|list|tojson }};
+    const CASH_FLOAT = {% if cash_float is not none %}{{ cash_float|float }}{% else %}null{% endif %};
+
+    function readDenominations() {
+        const out = {};
+        let total = 0;
+        DENOMS.forEach(d => {
+            const n = parseInt(document.getElementById("d-" + d).value || "0", 10) || 0;
+            if (n > 0) { out[String(d)] = n; total += d * n; }
+        });
+        return { out, total };
+    }
+
+    function fmt(n) { return "$" + n.toLocaleString(); }
+
+    function updateTotal() {
+        DENOMS.forEach(d => {
+            const n = parseInt(document.getElementById("d-" + d).value || "0", 10) || 0;
+            document.getElementById("s-" + d).textContent = fmt(d * Math.max(n, 0));
+        });
+        document.getElementById("c-total").textContent = fmt(readDenominations().total);
+    }
+
+    function pickShift(shift) {
+        document.getElementById("c-shift").value = shift;
+    }
+
+    function suggestCollected() {
+        if (CASH_FLOAT === null) return;
+        const total = readDenominations().total;
+        document.getElementById("c-collected").value = Math.max(total - CASH_FLOAT, 0);
+    }
+
+    function showMsg(id, ok, text) {
+        const el = document.getElementById(id);
+        el.className = "msg " + (ok ? "success" : "error");
+        el.style.display = "block";
+        el.textContent = text;
+    }
+
+    async function postJson(url, payload) {
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            const detail = Array.isArray(body.detail) ? "輸入格式不正確，請檢查欄位" : body.detail;
+            throw new Error(detail || "操作失敗");
+        }
+        return body;
+    }
+
+    async function submitClosing() {
+        const { out, total } = readDenominations();
+        const shiftLabel = document.getElementById("c-shift").selectedOptions[0].textContent;
+        if (total === 0 && !confirm("實點合計是 $0，確定要送出嗎？")) return;
+        if (!confirm("確定送出「" + shiftLabel + "」結帳？\n實點合計 " + fmt(total) + "\n送出後無法自行修改。")) return;
+        try {
+            const body = await postJson("/admin/cash/closings", {
+                business_date: document.getElementById("c-date").value,
+                shift: document.getElementById("c-shift").value,
+                denominations: out,
+                collected_amount: Number(document.getElementById("c-collected").value || 0),
+                note: document.getElementById("c-note").value.trim() || null,
+            });
+            location.href = "/admin/cash/closings/" + body.id + "/page";
+        } catch (err) {
+            showMsg("close-msg", false, err.message);
+            window.scrollTo({ top: document.getElementById("close-form").offsetTop - 20, behavior: "smooth" });
+        }
+    }
+
+    async function submitMovement() {
+        try {
+            await postJson("/admin/cash/movements", {
+                entry_date: "{{ today }}",
+                movement_type: document.getElementById("m-type").value,
+                amount: Number(document.getElementById("m-amount").value || 0),
+                counterparty: document.getElementById("m-counterparty").value.trim() || null,
+                description: document.getElementById("m-description").value.trim(),
+            });
+            location.reload();
+        } catch (err) {
+            showMsg("mv-msg", false, err.message);
+        }
+    }
+
+    async function voidMovement(id) {
+        const reason = prompt("請輸入作廢原因（會留下紀錄）：");
+        if (reason === null) return;
+        try {
+            await postJson("/admin/cash/movements/" + id + "/void", { reason });
+            location.reload();
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+
+    async function saveFloat() {
+        try {
+            await postJson("/admin/cash/settings/float", { amount: Number(document.getElementById("float-amount").value || 0) });
+            location.reload();
+        } catch (err) {
+            showMsg("float-msg", false, err.message);
+        }
+    }
+</script>
+{% endblock %}

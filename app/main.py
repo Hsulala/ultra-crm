@@ -7,6 +7,7 @@ from app.routers import internal, line_webhook
 from app.routers.admin import accounts as admin_accounts
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import bookings as admin_bookings
+from app.routers.admin import cash as admin_cash
 from app.routers.admin import class_records as admin_class_records
 from app.routers.admin import contracts as admin_contracts
 from app.routers.admin import members as admin_members
@@ -34,6 +35,7 @@ app.include_router(admin_class_records.router)
 app.include_router(admin_schedule.router)
 app.include_router(admin_venue_coaches.router)
 app.include_router(admin_revenue.router)
+app.include_router(admin_cash.router)
 app.include_router(admin_settings.router)
 app.include_router(admin_venue_bookings.router)
 app.include_router(liff_binding.router)

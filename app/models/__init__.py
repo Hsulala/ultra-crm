@@ -1,6 +1,13 @@
 from app.models.admin_user import ADMIN_ROLE_LABELS, AdminUser
 from app.models.binding_code import BINDING_CODE_STATUS_LABELS, BindingCode
 from app.models.booking import BOOKING_AREA_LABELS, BOOKING_STATUS_LABELS, Booking
+from app.models.cash import (
+    MOVEMENT_DIRECTIONS,
+    MOVEMENT_TYPE_LABELS,
+    AppSetting,
+    CashClosing,
+    CashMovement,
+)
 from app.models.class_record import ClassRecord
 from app.models.contract import CONTRACT_STATUS_LABELS, Contract, ContractMember
 from app.models.item_catalog import ItemCatalogEntry
@@ -12,6 +19,11 @@ from app.models.venue_booking import VENUE_BOOKING_STATUS_LABELS, VenueBooking
 from app.models.venue_coach import VenueRentalCoach
 
 __all__ = [
+    "AppSetting",
+    "CashClosing",
+    "CashMovement",
+    "MOVEMENT_DIRECTIONS",
+    "MOVEMENT_TYPE_LABELS",
     "AdminUser",
     "ADMIN_ROLE_LABELS",
     "BindingCode",
