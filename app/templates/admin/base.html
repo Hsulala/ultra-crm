@@ -31,7 +31,7 @@
         html.sidebar-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
 
         .sidebar .brand {
-            font-weight: 700; font-size: 16px; white-space: nowrap; letter-spacing: 0.15em;
+            font-weight: 700; font-size: 14px; white-space: nowrap; letter-spacing: 0.05em;
             display: flex; align-items: center; gap: 8px; padding: 18px 16px; overflow: hidden;
         }
         .sidebar .brand .dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; flex: none; }
@@ -162,6 +162,9 @@
             <a href="/admin/contracts/page" class="{% if active == 'contracts' %}active{% endif %}" title="合約"><span class="short">合</span><span class="label">合約</span></a>
             <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}" title="紀錄課程"><span class="short">紀</span><span class="label">紀錄課程</span></a>
             <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}" title="營收"><span class="short">營</span><span class="label">營收</span></a>
+            {% if current_user.role in ("manager", "front_desk", "super_admin") %}
+            <a href="/admin/cash/page" class="{% if active == 'cash' %}active{% endif %}" title="現金對帳"><span class="short">對</span><span class="label">現金對帳</span></a>
+            {% endif %}
             <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}" title="排班"><span class="short">排</span><span class="label">排班</span></a>
             {% if current_user.role in ("manager", "front_desk", "super_admin") %}
             <a href="/admin/venue-coaches/page" class="{% if active == 'venue-coaches' %}active{% endif %}" title="場租教練"><span class="short">場</span><span class="label">場租教練</span></a>
