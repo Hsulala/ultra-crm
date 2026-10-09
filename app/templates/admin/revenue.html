@@ -34,7 +34,7 @@
                 <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
                 <td>{{ e.item_name }}</td>
                 <td>${{ "{:,.0f}".format(e.amount) }}</td>
-                <td>{{ e.payment_method }}</td>
+                <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
@@ -78,7 +78,7 @@
                 <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
                 <td>{{ e.item_name }}</td>
                 <td>${{ "{:,.0f}".format(e.amount) }}</td>
-                <td>{{ e.payment_method }}</td>
+                <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
             </tr>
             {% endfor %}
         </table>

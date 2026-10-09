@@ -39,6 +39,8 @@ class RevenueDetail(Base, TimestampMixin):
     coach_id: Mapped[Optional[int]] = mapped_column(ForeignKey("members.id"), nullable=True)
     content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     payment_method: Mapped[str] = mapped_column(String, nullable=False)
+    # 匯款／轉帳時對帳用的帳號末五碼（選填，只存數字）
+    remittance_last5: Mapped[Optional[str]] = mapped_column(String(5), nullable=True)
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     contract_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contracts.id"), nullable=True)
     entered_by_id: Mapped[int] = mapped_column(ForeignKey("admin_users.id"), nullable=False)

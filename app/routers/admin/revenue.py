@@ -91,6 +91,7 @@ def create_revenue_entry_endpoint(
         coach_id=payload.coach_id,
         content=payload.content,
         contract_id=payload.contract_id,
+        remittance_last5=payload.remittance_last5,
         entered_by_id=admin.id,
     )
 
