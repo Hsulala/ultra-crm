@@ -10,6 +10,7 @@
 <body>
 <div class="page">
     <div class="header">
+        <span class="eyebrow">CLASS RECORDS</span>
         <h1>上課記錄</h1>
         <p>最近 5 筆上課內容</p>
     </div>
@@ -39,7 +40,7 @@
             if (!records) return;
 
             if (records.length === 0) {
-                content.innerHTML = `<div class="empty-state"><div class="emoji">📝</div>目前沒有上課記錄</div>`;
+                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有上課記錄</div>`;
                 return;
             }
             content.innerHTML = records.map(renderRecord).join("");

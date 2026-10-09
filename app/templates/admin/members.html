@@ -64,7 +64,7 @@
                 <span style="color:#bbb;">未設定</span>
                 {% endif %}
             </td>
-            <td>{% if m.line_user_id %}✅ 已綁定{% else %}⬜ 未綁定{% endif %}</td>
+            <td>{% if m.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
             <td>
                 <button onclick="issueBindingCode({{ m.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button>
                 <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">編輯會籍</button>
@@ -109,7 +109,7 @@
         <tr>
             <td>{{ vc.name }}</td>
             <td>{{ vc.phone or "-" }}</td>
-            <td>{% if vc.line_user_id %}✅ 已綁定{% else %}⬜ 未綁定{% endif %}</td>
+            <td>{% if vc.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
             <td><button onclick="issueVenueBindingCode({{ vc.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button></td>
         </tr>
         {% endfor %}

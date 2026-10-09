@@ -11,13 +11,16 @@
             /* 沿用 ultrafitness.com.tw 官網的品牌色 */
             --brand-orange: #f48124;
             --brand-orange-dark: #d96a10;
+            --brand-soft: #fff4eb;
+            --brand-tint: #ffe7d4;
+            --brand-brown: #645242;
             --brand-ink: #1a1a1a;
         }
         * { box-sizing: border-box; }
         html { --sidebar-width: 220px; --sidebar-width-collapsed: 64px; }
         body {
             font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
-            margin: 0; background: #f6f5f2; color: #262626;
+            margin: 0; background: #f6f5f2; color: #262626; letter-spacing: 0.5px;
         }
 
         .sidebar {
@@ -28,7 +31,7 @@
         html.sidebar-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
 
         .sidebar .brand {
-            font-weight: 900; font-size: 16px; white-space: nowrap; letter-spacing: 0.5px;
+            font-weight: 700; font-size: 16px; white-space: nowrap; letter-spacing: 0.15em;
             display: flex; align-items: center; gap: 8px; padding: 18px 16px; overflow: hidden;
         }
         .sidebar .brand .dot { width: 8px; height: 8px; background: #fff; border-radius: 50%; flex: none; }
@@ -100,7 +103,8 @@
             .sidebar .collapse-toggle { display: none; }
             .container, html.sidebar-collapsed .container { margin-left: 0; padding: 20px 16px 50px; }
         }
-        h1.page-title { font-size: 24px; font-weight: 900; margin: 0 0 20px; color: var(--brand-ink); }
+        h1.page-title { font-size: 24px; font-weight: 500; letter-spacing: 0.12em; margin: 0 0 24px; color: #000; }
+        h1.page-title::after { content: ""; display: block; width: 44px; border-top: 2px solid var(--brand-orange); margin-top: 10px; }
 
         .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 24px; }
         .stat-card { background: #fff; padding: 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); border-top: 3px solid var(--brand-orange); }
@@ -108,10 +112,10 @@
         .stat-card .value { font-size: 26px; font-weight: 900; color: var(--brand-ink); }
 
         .panel { background: #fff; padding: 20px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-        .panel h2 { font-size: 16px; font-weight: 700; margin: 0 0 14px; color: var(--brand-ink); }
+        .panel h2 { font-size: 16px; font-weight: 500; letter-spacing: 0.08em; margin: 0 0 14px; color: var(--brand-ink); border-left: 4px solid var(--brand-orange); padding-left: 10px; }
 
         table { width: 100%; border-collapse: collapse; font-size: 14px; }
-        th { text-align: left; color: #888; font-weight: 700; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid var(--brand-orange); }
+        th { text-align: left; color: var(--brand-brown); background: var(--brand-tint); font-weight: 700; font-size: 12px; padding: 8px 10px; border-bottom: 2px solid var(--brand-orange); }
         td { padding: 10px; border-bottom: 1px solid #f2f2f2; }
         tr:last-child td { border-bottom: none; }
 
@@ -132,7 +136,7 @@
         input:focus, select:focus { outline: none; border-color: var(--brand-orange); }
         button.primary {
             background: var(--brand-orange); color: #fff; border: none;
-            padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
+            padding: 10px 24px; font-size: 14px; font-weight: 500; letter-spacing: 0.2em; cursor: pointer; font-family: inherit;
         }
         button.primary:hover { background: var(--brand-orange-dark); }
         .msg { font-size: 13px; padding: 8px 12px; margin-bottom: 12px; display: none; }

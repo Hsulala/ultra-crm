@@ -10,6 +10,7 @@
 <body>
 <div class="page">
     <div class="header">
+        <span class="eyebrow">MY COURSES</span>
         <h1>我的課程</h1>
         <p>所有合約的剩餘堂數與到期狀態</p>
     </div>
@@ -29,7 +30,7 @@
     function renderContract(c) {
         const pct = c.total_sessions > 0 ? Math.min(100, Math.round((c.used_sessions / c.total_sessions) * 100)) : 0;
         const sharedNote = c.is_shared
-            ? `<div class="shared-note">👥 1對2 合約，與 ${c.shared_with_names.join("、")} 共用堂數</div>`
+            ? `<div class="shared-note">【1對2】與 ${c.shared_with_names.join("、")} 共用堂數</div>`
             : "";
         return `
         <div class="card">
@@ -53,7 +54,7 @@
             if (!contracts) return; // 正式環境正在 liff.login() 跳轉
 
             if (contracts.length === 0) {
-                content.innerHTML = `<div class="empty-state"><div class="emoji">📋</div>目前沒有查到合約紀錄</div>`;
+                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有查到合約紀錄</div>`;
                 return;
             }
             content.innerHTML = contracts.map(renderContract).join("");

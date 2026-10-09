@@ -10,7 +10,8 @@
 <body>
 <div class="page">
     <div class="header">
-        <h1>📝 紀錄課程</h1>
+        <span class="eyebrow">COURSE LOG</span>
+        <h1>紀錄課程</h1>
         <p>純紀錄當堂內容，不會扣合約堂數</p>
     </div>
 
@@ -62,7 +63,7 @@
                 method: "POST",
                 body: JSON.stringify({ contract_id: contractId, class_date: classDate, content_summary: content }),
             });
-            showMessage(`<div class="success-toast">✅ 已成功記錄課程內容</div>`);
+            showMessage(`<div class="success-toast">◆ 已成功記錄課程內容</div>`);
             card.querySelector(".content-input").value = "";
         } catch (err) {
             showMessage(`<div class="error-box">送出失敗：${err.message}</div>`);
@@ -79,7 +80,7 @@
             if (!contracts) return;
 
             if (contracts.length === 0) {
-                content.innerHTML = `<div class="empty-state"><div class="emoji">🎉</div>目前沒有名下進行中的合約</div>`;
+                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有名下進行中的合約</div>`;
                 return;
             }
             content.innerHTML = contracts.map(renderCard).join("");

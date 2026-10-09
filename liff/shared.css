@@ -1,74 +1,126 @@
+/* Ultra Fitness LIFF 共用樣式 — 對齊官網 ultrafitness.com.tw
+   主色 #f48124、Noto Sans TC、直角、寬字距、橘底白字標題列 */
+@import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700;900&display=swap");
+
+:root {
+    --main: #f48124;
+    --main-soft: #fff4eb;
+    --main-tint: #ffe7d4;
+    --brown: #645242;
+    --gray1: #333333;
+    --gray2: #555555;
+    --gray3: #777777;
+    --gray4: #999999;
+    --gray6: #dddddd;
+    --gray7: #eaeaea;
+    --danger: #c0392b;
+}
+
 * { box-sizing: border-box; }
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Segoe UI", Roboto, sans-serif;
+    font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", sans-serif;
     margin: 0;
-    background: #f4f5f7;
-    color: #222;
+    background: #f6f6f6;
+    color: #000;
+    letter-spacing: 1px;
     -webkit-font-smoothing: antialiased;
 }
-.page { max-width: 480px; margin: 0 auto; padding: 16px; padding-bottom: 40px; }
-.header { padding: 20px 4px 16px; }
-.header h1 { font-size: 20px; margin: 0 0 4px; }
-.header p { font-size: 13px; color: #777; margin: 0; }
+.page { max-width: 480px; margin: 0 auto; padding: 0 16px 40px; }
 
+/* 標題列：官網 header 的橘底白字 */
+.header {
+    background: var(--main);
+    color: #fff;
+    margin: 0 -16px 20px;
+    padding: 26px 20px 22px;
+}
+.header .eyebrow {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    opacity: 0.9;
+    margin-bottom: 6px;
+}
+.header h1 { font-size: 24px; font-weight: 500; letter-spacing: 0.18em; margin: 0 0 8px; }
+.header h1::after {
+    content: "";
+    display: block;
+    width: 44px;
+    border-top: 1px solid #fff;
+    margin-top: 12px;
+}
+.header p { font-size: 13px; color: rgba(255,255,255,0.92); margin: 0; }
+
+/* 卡片：直角、細邊框、無陰影 */
 .card {
     background: #fff;
-    border-radius: 14px;
+    border: 1px solid var(--gray7);
+    border-radius: 0;
     padding: 16px;
     margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
-.card-title-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.card-title { font-size: 16px; font-weight: 600; }
+.card-title-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; gap: 8px; }
+.card-title { font-size: 16px; font-weight: 500; color: #000; letter-spacing: 0.08em; }
+
 .badge {
     display: inline-block;
     font-size: 12px;
     padding: 2px 10px;
-    border-radius: 999px;
-    font-weight: 600;
+    border-radius: 0;
+    font-weight: 500;
+    white-space: nowrap;
 }
-.badge-active { background: #e3f7e9; color: #1a8a3f; }
-.badge-refunded { background: #fdeaea; color: #c0392b; }
-.badge-free { background: #eef1fd; color: #4a5bd4; }
-.badge-shared { background: #fff4e0; color: #b8720b; }
+.badge-active { background: var(--main-soft); color: var(--main); border: 1px solid var(--main-tint); }
+.badge-refunded { background: #fdeaea; color: var(--danger); border: 1px solid #f6cfcf; }
+.badge-free { background: #f2f2f2; color: var(--gray2); border: 1px solid var(--gray7); }
+.badge-shared { background: var(--main-tint); color: var(--brown); }
 
-.progress-bar { background: #eee; border-radius: 999px; height: 8px; overflow: hidden; margin: 10px 0 6px; }
-.progress-fill { background: #06c755; height: 100%; border-radius: 999px; }
-.meta-row { display: flex; justify-content: space-between; font-size: 13px; color: #666; }
+.progress-bar { background: var(--gray7); border-radius: 0; height: 6px; overflow: hidden; margin: 12px 0 8px; }
+.progress-fill { background: var(--main); height: 100%; border-radius: 0; }
+.meta-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray3); }
 .meta-row + .meta-row { margin-top: 4px; }
-.meta-row b { color: #222; }
+.meta-row b { color: var(--gray1); font-weight: 500; }
 
 .shared-note {
-    font-size: 12px; color: #b8720b; background: #fff4e0;
-    border-radius: 8px; padding: 6px 10px; margin-top: 10px;
+    font-size: 12px; color: var(--brown); background: var(--main-soft);
+    border-left: 4px solid var(--main); padding: 8px 10px; margin-top: 12px;
 }
 
-.record-date { font-size: 13px; color: #06c755; font-weight: 600; margin-bottom: 2px; }
-.record-coach { font-size: 12px; color: #888; margin-bottom: 6px; }
-.record-content { font-size: 14px; line-height: 1.6; color: #333; }
+.record-date { font-size: 13px; color: var(--main); font-weight: 500; letter-spacing: 0.1em; margin-bottom: 2px; }
+.record-coach { font-size: 12px; color: var(--gray4); margin-bottom: 8px; }
+.record-content { font-size: 14px; line-height: 1.7; color: var(--gray1); }
 
-.empty-state { text-align: center; padding: 60px 20px; color: #999; }
-.empty-state .emoji { font-size: 40px; margin-bottom: 12px; }
+.empty-state { text-align: center; padding: 60px 20px; color: var(--gray4); font-size: 14px; }
+.empty-state .mark { font-size: 20px; color: var(--main); margin-bottom: 12px; }
 
-.loading { text-align: center; padding: 60px 20px; color: #999; font-size: 14px; }
+.loading { text-align: center; padding: 60px 20px; color: var(--gray4); font-size: 14px; }
 .error-box {
-    background: #fdeaea; color: #c0392b; border-radius: 10px;
+    background: #fdeaea; color: var(--danger); border-left: 4px solid var(--danger);
     padding: 12px 14px; font-size: 14px; margin-bottom: 12px;
 }
 
-select, textarea, input[type=text] {
-    width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 10px;
-    font-size: 15px; background: #fff; margin-bottom: 12px;
+select, textarea, input[type=text], input[type=date] {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--main); border-radius: 0;
+    font-size: 15px; font-family: inherit; letter-spacing: 1px; background: #fff;
+    margin-bottom: 12px; outline: none;
 }
-label { font-size: 13px; color: #555; font-weight: 600; display: block; margin-bottom: 6px; }
+select:focus, textarea:focus, input[type=text]:focus, input[type=date]:focus {
+    box-shadow: 0 0 0 2px var(--main-tint);
+}
+label { font-size: 13px; color: var(--gray2); font-weight: 500; display: block; margin-bottom: 6px; }
+
+/* 主按鈕：官網 mainBtn（直角實心橘、寬字距） */
 button.primary {
-    width: 100%; padding: 13px; background: #06c755; color: #fff; border: none;
-    border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer;
+    width: 100%; padding: 12px; background: var(--main); color: #fff; border: none;
+    border-radius: 0; font-size: 16px; font-weight: 500; font-family: inherit;
+    letter-spacing: 0.3em; cursor: pointer; transition: filter 0.3s ease;
 }
-button.primary:disabled { background: #b9e8c9; }
-button.primary:active { opacity: 0.85; }
+button.primary:hover { filter: brightness(1.1); }
+button.primary:disabled { opacity: 0.45; cursor: default; }
+button.primary:active { filter: brightness(0.95); }
 
 .success-toast {
-    background: #e3f7e9; color: #1a8a3f; border-radius: 10px;
+    background: var(--main-soft); color: var(--brown); border-left: 4px solid var(--main);
     padding: 12px 14px; font-size: 14px; margin-bottom: 12px;
 }
