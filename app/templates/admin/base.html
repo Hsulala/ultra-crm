@@ -53,10 +53,16 @@
         }
         .sidebar nav a:hover { color: #fff; background: rgba(0,0,0,0.1); }
         .sidebar nav a.active { color: #fff; font-weight: 700; background: rgba(0,0,0,0.18); border-left: 3px solid var(--brand-ink); }
-        .sidebar nav a .short { display: none; font-weight: 700; }
+        .sidebar nav a .ico { width: 20px; height: 20px; flex: none; margin-right: 12px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
         html.sidebar-collapsed .sidebar nav a .label { display: none; }
-        html.sidebar-collapsed .sidebar nav a .short { display: inline; }
-        html.sidebar-collapsed .sidebar nav a { text-align: center; justify-content: center; padding: 11px 4px; }
+        html.sidebar-collapsed .sidebar nav a { justify-content: center; padding: 11px 4px; }
+        html.sidebar-collapsed .sidebar nav a .ico { margin-right: 0; }
+        .sidebar nav a { cursor: grab; }
+        .sidebar nav a.sortable-ghost { opacity: 0.35; background: rgba(0,0,0,0.25); }
+        .sidebar nav a.sortable-chosen { cursor: grabbing; }
+        .sidebar .nav-reset { background: none; border: none; color: rgba(255,255,255,0.7); font-size: 11px; cursor: pointer; font-family: inherit; padding: 6px 12px 10px; text-align: left; letter-spacing: 0.05em; }
+        .sidebar .nav-reset:hover { color: #fff; text-decoration: underline; }
+        html.sidebar-collapsed .sidebar .nav-reset { display: none; }
 
         .sidebar .user {
             font-size: 12px; color: rgba(255,255,255,0.9); padding: 14px 16px;
@@ -99,7 +105,8 @@
             html.sidebar-collapsed .sidebar .brand span.label,
             html.sidebar-collapsed .sidebar nav a .label,
             html.sidebar-collapsed .sidebar .user .username { display: inline; }
-            .sidebar nav a .short { display: none !important; }
+            html.sidebar-collapsed .sidebar nav a { justify-content: flex-start; padding: 11px 12px; }
+            html.sidebar-collapsed .sidebar nav a .ico { margin-right: 12px; }
             .sidebar .collapse-toggle { display: none; }
             .container, html.sidebar-collapsed .container { margin-left: 0; padding: 20px 16px 50px; }
         }
@@ -146,6 +153,7 @@
     </style>
 </head>
 <body>
+    {% macro ico(d) %}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ d }}"/></svg>{% endmacro %}
     <div class="mobile-topbar">
         <button onclick="toggleMobileNav()" aria-label="選單">☰</button>
         <div class="brand">ULTRA FITNESS 後台</div>
@@ -156,26 +164,27 @@
             <span class="dot"></span><span class="label">ULTRA FITNESS 後台</span>
         </div>
         <button class="collapse-toggle" onclick="toggleSidebarCollapse()" title="收起/展開選單">«</button>
-        <nav>
-            <a href="/admin/" class="{% if active == 'dashboard' %}active{% endif %}" title="總覽"><span class="short">總</span><span class="label">總覽</span></a>
-            <a href="/admin/members/page" class="{% if active == 'members' %}active{% endif %}" title="會員"><span class="short">會</span><span class="label">會員</span></a>
-            <a href="/admin/contracts/page" class="{% if active == 'contracts' %}active{% endif %}" title="合約"><span class="short">合</span><span class="label">合約</span></a>
-            <a href="/admin/class-records/page" class="{% if active == 'class-records' %}active{% endif %}" title="紀錄課程"><span class="short">紀</span><span class="label">紀錄課程</span></a>
-            <a href="/admin/revenue/page" class="{% if active == 'revenue' %}active{% endif %}" title="營收"><span class="short">營</span><span class="label">營收</span></a>
+        <nav id="side-nav">
+            <a href="/admin/" data-key="dashboard" class="{% if active == 'dashboard' %}active{% endif %}" title="總覽">{{ ico("M3 3h7v9H3z M14 3h7v5h-14z M14 12h7v9h-7z M3 16h7v5H3z") }}<span class="label">總覽</span></a>
+            <a href="/admin/members/page" data-key="members" class="{% if active == 'members' %}active{% endif %}" title="會員">{{ ico("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75") }}<span class="label">會員</span></a>
+            <a href="/admin/contracts/page" data-key="contracts" class="{% if active == 'contracts' %}active{% endif %}" title="合約">{{ ico("M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8") }}<span class="label">合約</span></a>
+            <a href="/admin/class-records/page" data-key="class-records" class="{% if active == 'class-records' %}active{% endif %}" title="紀錄課程">{{ ico("M9 2h6v4H9z M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 14l2 2 4-4") }}<span class="label">紀錄課程</span></a>
+            <a href="/admin/revenue/page" data-key="revenue" class="{% if active == 'revenue' %}active{% endif %}" title="營收">{{ ico("M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3") }}<span class="label">營收</span></a>
             {% if current_user.role in ("manager", "front_desk", "super_admin") %}
-            <a href="/admin/cash/page" class="{% if active == 'cash' %}active{% endif %}" title="現金對帳"><span class="short">對</span><span class="label">現金對帳</span></a>
+            <a href="/admin/cash/page" data-key="cash" class="{% if active == 'cash' %}active{% endif %}" title="現金對帳">{{ ico("M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4") }}<span class="label">現金對帳</span></a>
             {% endif %}
-            <a href="/admin/schedule/page" class="{% if active == 'schedule' %}active{% endif %}" title="排班"><span class="short">排</span><span class="label">排班</span></a>
+            <a href="/admin/schedule/page" data-key="schedule" class="{% if active == 'schedule' %}active{% endif %}" title="排班">{{ ico("M8 2v4 M16 2v4 M3 6h18v15H3z M3 10h18") }}<span class="label">排班</span></a>
             {% if current_user.role in ("manager", "front_desk", "super_admin") %}
-            <a href="/admin/venue-coaches/page" class="{% if active == 'venue-coaches' %}active{% endif %}" title="場租教練"><span class="short">場</span><span class="label">場租教練</span></a>
+            <a href="/admin/venue-coaches/page" data-key="venue-coaches" class="{% if active == 'venue-coaches' %}active{% endif %}" title="場租教練">{{ ico("M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") }}<span class="label">場租教練</span></a>
             {% endif %}
             {% if current_user.role in ("manager", "super_admin") %}
-            <a href="/admin/settings/items/page" class="{% if active == 'settings' %}active{% endif %}" title="設定"><span class="short">設</span><span class="label">設定</span></a>
+            <a href="/admin/settings/items/page" data-key="settings" class="{% if active == 'settings' %}active{% endif %}" title="設定">{{ ico("M21 4h-7 M10 4H3 M21 12h-9 M8 12H3 M21 20h-5 M12 20H3 M14 2v4 M8 10v4 M16 18v4") }}<span class="label">設定</span></a>
             {% endif %}
             {% if current_user.role == "super_admin" %}
-            <a href="/admin/accounts/page" class="{% if active == 'accounts' %}active{% endif %}" title="帳號管理"><span class="short">帳</span><span class="label">帳號管理</span></a>
+            <a href="/admin/accounts/page" data-key="accounts" class="{% if active == 'accounts' %}active{% endif %}" title="帳號管理">{{ ico("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z") }}<span class="label">帳號管理</span></a>
             {% endif %}
         </nav>
+        <button class="nav-reset" onclick="resetNavOrder()" title="把選單順序還原成預設">還原選單順序</button>
         <div class="user">
             <span class="username">{{ current_user.username }}（{{ ADMIN_ROLE_LABELS[current_user.role] }}）</span>
             <form method="post" action="/admin/logout" style="margin:0;">
@@ -197,6 +206,45 @@
         }
         function toggleMobileNav() {
             document.documentElement.classList.toggle("mobile-nav-open");
+        }
+
+        // 選單順序：每個人在自己的瀏覽器各自記一份，換瀏覽器或電腦就會是預設順序
+        var NAV_KEY = "navOrder:{{ current_user.username }}";
+        function readNavOrder() {
+            try { return JSON.parse(localStorage.getItem(NAV_KEY) || "[]"); } catch (e) { return []; }
+        }
+        function applyNavOrder() {
+            var nav = document.getElementById("side-nav");
+            var saved = readNavOrder();
+            if (!saved.length) return;
+            // 存過的照順序排，之後新增的選單項目維持原位置接在後面
+            saved.forEach(function (key) {
+                var el = nav.querySelector('a[data-key="' + key + '"]');
+                if (el) nav.appendChild(el);
+            });
+            Array.prototype.slice.call(nav.querySelectorAll("a")).forEach(function (el) {
+                if (saved.indexOf(el.dataset.key) === -1) nav.appendChild(el);
+            });
+        }
+        function resetNavOrder() {
+            try { localStorage.removeItem(NAV_KEY); } catch (e) {}
+            location.reload();
+        }
+        applyNavOrder();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script>
+        if (window.Sortable) {
+            Sortable.create(document.getElementById("side-nav"), {
+                animation: 150,
+                ghostClass: "sortable-ghost",
+                delay: 180,
+                delayOnTouchOnly: true,
+                onEnd: function () {
+                    var keys = Array.prototype.map.call(document.querySelectorAll("#side-nav a"), function (el) { return el.dataset.key; });
+                    try { localStorage.setItem(NAV_KEY, JSON.stringify(keys)); } catch (e) {}
+                }
+            });
         }
     </script>
 </body>
