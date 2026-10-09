@@ -28,14 +28,16 @@
     <h2>場租教練清單（共 {{ coaches|length }} 位）</h2>
     {% if coaches %}
     <table>
-        <tr><th>姓名</th><th>電話</th><th>狀態</th><th>操作</th></tr>
+        <tr><th>姓名</th><th>電話</th><th>LINE 綁定</th><th>狀態</th><th>操作</th></tr>
         {% for c in coaches %}
         <tr id="row-{{ c.id }}">
             <td id="name-{{ c.id }}">{{ c.name }}</td>
             <td id="phone-{{ c.id }}">{{ c.phone or "-" }}</td>
+            <td>{% if c.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
             <td>{% if c.is_active %}<span style="color:#1a8a3f;">啟用中</span>{% else %}<span style="color:#c0392b;">已停用</span>{% endif %}</td>
             <td style="display:flex; gap:6px;">
                 <button onclick="renameCoach({{ c.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">改名</button>
+                <button onclick="issueBindingCode({{ c.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button>
                 {% if c.is_active %}
                 <button onclick="setActive({{ c.id }}, false)" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer; color:#c0392b;">停用</button>
                 {% else %}
@@ -88,6 +90,16 @@
         } else {
             const body = await res.json().catch(() => ({}));
             alert(body.detail || "改名失敗");
+        }
+    }
+
+    async function issueBindingCode(venueCoachId) {
+        const res = await fetch(`/admin/venue-coaches/${venueCoachId}/binding-code`, { method: "POST" });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`綁定碼：${data.code}\n效期至：${data.expires_at}\n\n請口頭告知場租教練本人。`);
+        } else {
+            alert("產生失敗");
         }
     }
 

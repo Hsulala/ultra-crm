@@ -17,6 +17,7 @@ from app.services.revenue_service import (
     get_monthly_summary,
     get_payment_method_suggestions,
 )
+from app.services.cash_service import taipei_today
 from app.templating import templates
 
 router = APIRouter(prefix="/admin/revenue", tags=["admin-revenue"])
@@ -28,7 +29,7 @@ def revenue_page(
     admin: AdminUser = Depends(require_role("manager")),
     db: Session = Depends(get_db),
 ):
-    today = date_cls.today()
+    today = taipei_today()
     daily = get_daily_summary(db, entry_date=today)
     monthly = get_monthly_summary(db, year=today.year, month=today.month)
     coach_performance = get_coach_class_counts(db, year=today.year, month=today.month)

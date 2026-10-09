@@ -4,28 +4,41 @@
 {% block content %}
 <h1 class="page-title">總覽</h1>
 
-<div class="stat-grid">
-    <div class="stat-card">
-        <div class="label">今日營收</div>
-        <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">本月營收</div>
-        <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">在籍學員</div>
-        <div class="value">{{ student_count }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">教練人數</div>
-        <div class="value">{{ coach_count }}</div>
-    </div>
-    <div class="stat-card">
-        <div class="label">進行中合約</div>
-        <div class="value">{{ active_contract_count }}</div>
+{% if can_work %}
+<div class="panel">
+    <h2>今日工作台（{{ today }}）</h2>
+    {% include "admin/_revenue_entry.html" %}
+
+    <div class="wb-grid">
+        <div>
+            <div class="wb-title">現金結帳狀態</div>
+            <div class="wb-shifts">
+                {% for shift in SHIFT_ORDER %}
+                {% set c = shift_status[shift] %}
+                <div class="wb-shift {% if c %}done{% elif shift == current_shift %}now{% endif %}">
+                    <div class="n">{{ SHIFT_LABELS[shift] }}</div>
+                    <div class="s">{% if c %}◆ 已結帳{% elif shift == current_shift %}▸ 目前班次，尚未結帳{% else %}◇ 尚未結帳{% endif %}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="/admin/cash/page" class="wb-link">前往現金對帳 ›</a>
+        </div>
+        <div>
+            <div class="wb-title">今日收款（共 {{ today_entry_count }} 筆{% if today_entry_count > 8 %}，顯示最新 8 筆{% endif %}）</div>
+            {% if today_entries %}
+            <table class="wb-table">
+                {% for e in today_entries %}
+                <tr><td>{{ e.item_name }}<span class="wb-cat">{{ category_labels.get(e.item_category, e.item_category) }}</span></td><td class="r">${{ "{:,.0f}".format(e.amount) }}</td><td class="r">{{ e.payment_method }}</td></tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <div class="empty" style="padding:10px 0;">今天還沒有收款紀錄</div>
+            {% endif %}
+            {% if current_user.role in ("manager", "super_admin") %}<a href="/admin/revenue/page" class="wb-link">看完整營收報表 ›</a>{% endif %}
+        </div>
     </div>
 </div>
+{% endif %}
 
 <div class="panel">
     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
@@ -102,7 +115,43 @@
     {% endif %}
 </div>
 
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">今日營收</div>
+        <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">本月營收</div>
+        <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">在籍學員</div>
+        <div class="value">{{ student_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">教練人數</div>
+        <div class="value">{{ coach_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">進行中合約</div>
+        <div class="value">{{ active_contract_count }}</div>
+    </div>
+</div>
+
 <style>
+    .wb-grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:24px; margin-top:8px; padding-top:16px; border-top:1px solid #f0f0f0; }
+    .wb-title { font-size:12px; font-weight:700; color:#645242; margin-bottom:8px; }
+    .wb-shifts { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
+    .wb-shift { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#fafafa; border-left:4px solid #ddd; font-size:13px; }
+    .wb-shift.done { border-left-color:#1a8a3f; background:#f1faf4; }
+    .wb-shift.now { border-left-color:#f48124; background:#fff4eb; font-weight:700; }
+    .wb-shift .s { color:#666; font-size:12px; }
+    .wb-link { font-size:13px; font-weight:700; color:#f48124; text-decoration:none; }
+    .wb-link:hover { text-decoration:underline; }
+    table.wb-table td { padding:6px 4px; font-size:13px; }
+    table.wb-table td.r { text-align:right; white-space:nowrap; }
+    .wb-cat { font-size:11px; color:#d96a10; background:#fff1e2; padding:1px 6px; margin-left:8px; }
+    @media (max-width: 768px) { .wb-grid { grid-template-columns: 1fr; } }
     table.grid-table { border-collapse: collapse; font-size: 12px; width: 100%; table-layout: fixed; }
     table.grid-table th { background:#faf5ef; padding:6px 4px; text-align:center; border:1px solid #f0f0f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .grid-hour-col { width: 52px; font-weight:700; color:#888; text-align:center; background:#fafafa; }

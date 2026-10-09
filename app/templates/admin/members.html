@@ -86,37 +86,9 @@
     {% endif %}
 </div>
 
-<div class="panel">
-    <h2>場租教練（獨立身分，不算會員）</h2>
-    <div id="venue-create-msg" class="msg"></div>
-    <div class="form-row">
-        <div>
-            <label>姓名</label>
-            <input type="text" id="f-venue-name" placeholder="場租教練姓名">
-        </div>
-        <div>
-            <label>電話（選填）</label>
-            <input type="text" id="f-venue-phone" placeholder="電話">
-        </div>
-        <div style="display:flex; align-items:flex-end;">
-            <button class="primary" onclick="createVenueCoach()">新增</button>
-        </div>
-    </div>
-    {% if venue_coaches %}
-    <table>
-        <tr><th>姓名</th><th>電話</th><th>綁定狀態</th><th>操作</th></tr>
-        {% for vc in venue_coaches %}
-        <tr>
-            <td>{{ vc.name }}</td>
-            <td>{{ vc.phone or "-" }}</td>
-            <td>{% if vc.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
-            <td><button onclick="issueVenueBindingCode({{ vc.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button></td>
-        </tr>
-        {% endfor %}
-    </table>
-    {% else %}
-    <div class="empty">目前沒有場租教練資料</div>
-    {% endif %}
+<div class="panel" style="font-size:13px; color:#666;">
+    場租教練不算會員，名單、綁定碼都在左側選單的
+    <a href="/admin/venue-coaches/page" style="color:#f48124; font-weight:700;">場租教練</a> 頁面管理。
 </div>
 
 <script>
@@ -182,36 +154,6 @@
             location.reload();
         } else {
             alert("儲存失敗");
-        }
-    }
-
-    async function createVenueCoach() {
-        const msg = document.getElementById("venue-create-msg");
-        msg.style.display = "none";
-        const name = document.getElementById("f-venue-name").value.trim();
-        if (!name) {
-            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填姓名";
-            return;
-        }
-        const payload = { name: name, phone: document.getElementById("f-venue-phone").value.trim() || null };
-        const res = await fetch("/admin/venue-coaches", {
-            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
-        });
-        if (res.ok) {
-            location.reload();
-        } else {
-            const body = await res.json().catch(() => ({}));
-            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
-        }
-    }
-
-    async function issueVenueBindingCode(venueCoachId) {
-        const res = await fetch(`/admin/venue-coaches/${venueCoachId}/binding-code`, { method: "POST" });
-        if (res.ok) {
-            const data = await res.json();
-            alert(`綁定碼：${data.code}\n效期至：${data.expires_at}\n\n請口頭告知場租教練本人。`);
-        } else {
-            alert("產生失敗");
         }
     }
 </script>
