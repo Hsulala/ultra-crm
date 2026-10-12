@@ -1,18 +1,18 @@
 {% extends "admin/base.html" %}
 {% block title %}排班 - Ultra Fitness 後台{% endblock %}
 {% block content %}
-<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+<div class="panel-head" style="margin-bottom:22px;">
     <h1 class="page-title" style="margin:0;">排班（{{ year }} 年 {{ month }} 月）</h1>
-    <div style="display:flex; gap:8px;">
-        <a href="/admin/schedule/page?year={{ prev_year }}&month={{ prev_month }}" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">← 上個月</a>
-        <a href="/admin/schedule/page" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">本月</a>
-        <a href="/admin/schedule/page?year={{ next_year }}&month={{ next_month }}" style="padding:8px 14px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:13px;">下個月 →</a>
+    <div class="btn-row">
+        <a href="/admin/schedule/page?year={{ prev_year }}&month={{ prev_month }}" class="btn-ghost">‹ 上個月</a>
+        <a href="/admin/schedule/page" class="btn-ghost">本月</a>
+        <a href="/admin/schedule/page?year={{ next_year }}&month={{ next_month }}" class="btn-ghost">下個月 ›</a>
     </div>
 </div>
 
 <div class="panel">
-    <p style="color:#888; font-size:13px; margin:0 0 12px;">點一天的格子就可以編輯當天早/中/晚三班的排班，一個班可以同時排多人（例如一位教練＋一位櫃檯）。</p>
-    <button onclick="publishMonth()" style="font-size:13px; font-weight:700; padding:9px 18px; border:1px solid #f48124; background:#fff; color:#f48124; cursor:pointer; font-family:inherit;">發布本月班表</button>
+    <p class="hint" style="font-size:13px; margin:0 0 14px;">點一天的格子就可以編輯當天早/中/晚三班的排班，一個班可以同時排多人（例如一位教練＋一位櫃檯）。</p>
+    <button onclick="publishMonth()" class="btn-outline">發布本月班表</button>
 </div>
 
 <div class="panel">
@@ -41,29 +41,35 @@
     </p>
 </div>
 
-<div id="day-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:100; align-items:center; justify-content:center;">
-    <div style="background:#fff; width:460px; max-width:92vw; max-height:86vh; overflow-y:auto; padding:22px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-            <h2 style="margin:0; font-size:16px;" id="day-modal-title"></h2>
-            <button onclick="closeDayEditor()" style="border:none; background:none; font-size:20px; cursor:pointer; color:#888;">&times;</button>
+<div id="day-modal" style="display:none; position:fixed; inset:0; background:rgba(17,17,17,0.5); z-index:120; align-items:center; justify-content:center;">
+    <div class="modal-card">
+        <div class="panel-head">
+            <h2 style="margin:0; font-size:17px;" id="day-modal-title"></h2>
+            <button onclick="closeDayEditor()" class="modal-close" aria-label="關閉">&times;</button>
         </div>
         <div id="day-modal-body"></div>
     </div>
 </div>
 
 <style>
-    table.cal-table { table-layout: fixed; }
-    table.cal-table th { text-align:center; background:#faf5ef; }
-    td.cal-cell { vertical-align: top; height: 90px; padding: 6px; border: 1px solid #f0f0f0; }
-    td.cal-cell.out-of-month { background: #fafafa; color: #ccc; }
-    td.cal-cell.today { background: #fff8f0; }
-    .cal-date { font-size: 12px; font-weight: 700; color: #888; margin-bottom: 4px; }
-    .cal-entry { font-size: 11px; padding: 2px 4px; margin-bottom: 2px; border-radius: 3px; }
-    .cal-entry.draft { background: #eee; color: #888; }
-    .cal-entry.published { background: #fff1e2; color: #d96a10; }
-    .legend-dot { display:inline-block; width:9px; height:9px; border-radius:2px; margin-right:4px; vertical-align:middle; }
-    .legend-dot.draft { background:#eee; }
-    .legend-dot.published { background:#fff1e2; border:1px solid #d96a10; }
+    h1.page-title::after { content: none; }
+    table.cal-table { table-layout: fixed; border-collapse: separate; border-spacing: 6px; margin: -6px; width: calc(100% + 12px); }
+    table.cal-table th { text-align: center; border: 0; padding: 4px 0 6px; font-size: 14px; background: transparent; }
+    table.cal-table td.cal-cell { vertical-align: top; height: 100px; padding: 7px 8px; background: var(--soft); border: 1.5px solid var(--rule); border-radius: 14px; cursor: pointer; }
+    table.cal-table td.cal-cell:hover { background: var(--accent-soft); }
+    td.cal-cell.out-of-month { background: transparent; opacity: .45; }
+    td.cal-cell.today { background: var(--accent-soft); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 5px 6px; }
+    .cal-date { font: italic 800 17px var(--display); margin-bottom: 4px; }
+    td.cal-cell.today .cal-date { color: var(--accent); }
+    .cal-entry { font-size: 12px; font-weight: 700; padding: 1px 9px; margin-bottom: 3px; border-radius: 999px; border: 2px solid var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cal-entry.draft { background: #fff; color: var(--muted); border-color: var(--muted); border-style: dashed; }
+    .cal-entry.published { background: var(--accent); color: #fff; }
+    .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin: 0 5px 0 14px; vertical-align: middle; border: 2px solid var(--ink); }
+    .legend-dot.draft { background: #fff; border-style: dashed; border-color: var(--muted); }
+    .legend-dot.published { background: var(--accent); }
+    .modal-card { background: #fff; width: 480px; max-width: 92vw; max-height: 86vh; overflow-y: auto; padding: 24px; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 8px 8px 0 var(--ink); }
+    .modal-close { border: 2.5px solid var(--ink); background: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+    .modal-close:hover { background: var(--accent-soft); }
 </style>
 
 <script>
@@ -97,12 +103,12 @@
             const chips = shiftEntries.map(e => `
                 <div class="cal-entry ${e.status === 'published' ? 'published' : 'draft'}" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <span>${e.assignee}</span>
-                    <span style="cursor:pointer; color:#c0392b; font-weight:700; padding:0 4px;" onclick="removeEntry(${e.id})">×</span>
+                    <span style="cursor:pointer; font-weight:700; padding:0 4px;" onclick="removeEntry(${e.id})">×</span>
                 </div>
-            `).join("") || '<div style="color:#bbb; font-size:12px; margin-bottom:4px;">尚未排班</div>';
+            `).join("") || '<div style="color:var(--muted); font-size:12px; margin-bottom:6px; padding-left:4px;">尚未排班</div>';
             return `
                 <div style="margin-bottom:16px;">
-                    <label style="display:block; font-weight:700; font-size:13px; margin-bottom:6px;">${s.label}</label>
+                    <label style="display:block; font-weight:900; font-size:14px; margin-bottom:8px;">${s.label}</label>
                     ${chips}
                     <div class="form-row" style="margin-bottom:0;">
                         <div>

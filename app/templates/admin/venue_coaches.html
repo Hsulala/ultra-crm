@@ -2,7 +2,7 @@
 {% block title %}場租教練 - Ultra Fitness 後台{% endblock %}
 {% block content %}
 <h1 class="page-title">場租教練</h1>
-<p style="color:#888; font-size:13px; margin-top:-14px; margin-bottom:20px;">
+<p class="page-hint">
     場租教練不是店內正職，是租場地帶自己客人的教練，總覽頁「場租教練」欄位就是照這裡的名單顯示。
 </p>
 
@@ -34,14 +34,14 @@
             <td id="name-{{ c.id }}">{{ c.name }}</td>
             <td id="phone-{{ c.id }}">{{ c.phone or "-" }}</td>
             <td>{% if c.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
-            <td>{% if c.is_active %}<span style="color:#1a8a3f;">啟用中</span>{% else %}<span style="color:#c0392b;">已停用</span>{% endif %}</td>
-            <td style="display:flex; gap:6px;">
-                <button onclick="renameCoach({{ c.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">改名</button>
-                <button onclick="issueBindingCode({{ c.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button>
+            <td>{% if c.is_active %}<span class="pill ok">啟用中</span>{% else %}<span class="pill off">已停用</span>{% endif %}</td>
+            <td>
+                <button onclick="renameCoach({{ c.id }})" class="btn-sm">改名</button>
+                <button onclick="issueBindingCode({{ c.id }})" class="btn-sm">產生綁定碼</button>
                 {% if c.is_active %}
-                <button onclick="setActive({{ c.id }}, false)" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer; color:#c0392b;">停用</button>
+                <button onclick="setActive({{ c.id }}, false)" class="btn-sm danger">停用</button>
                 {% else %}
-                <button onclick="setActive({{ c.id }}, true)" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">啟用</button>
+                <button onclick="setActive({{ c.id }}, true)" class="btn-sm">啟用</button>
                 {% endif %}
             </td>
         </tr>

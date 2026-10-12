@@ -2,7 +2,7 @@
 {% block title %}帳號管理 - Ultra Fitness 後台{% endblock %}
 {% block content %}
 <h1 class="page-title">帳號管理</h1>
-<p style="color:#888; font-size:13px; margin-top:-14px; margin-bottom:20px;">
+<p class="page-hint">
     只有超級管理者看得到這頁。新增帳號是直接由這裡建立帳密，不是寄邀請連結——請直接把帳密口頭或訊息告知對方。
 </p>
 
@@ -41,16 +41,16 @@
         <tr id="row-{{ a.id }}">
             <td>{{ a.username }}</td>
             <td>{{ role_labels.get(a.role, a.role) }}</td>
-            <td>{% if a.is_active %}<span style="color:#1a8a3f;">啟用中</span>{% else %}<span style="color:#c0392b;">已停用</span>{% endif %}</td>
+            <td>{% if a.is_active %}<span class="pill ok">啟用中</span>{% else %}<span class="pill off">已停用</span>{% endif %}</td>
             <td>
                 {% if a.id != current_user.id %}
                 {% if a.is_active %}
-                <button onclick="setActive({{ a.id }}, false)" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer; color:#c0392b;">停用</button>
+                <button onclick="setActive({{ a.id }}, false)" class="btn-sm danger">停用</button>
                 {% else %}
-                <button onclick="setActive({{ a.id }}, true)" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">啟用</button>
+                <button onclick="setActive({{ a.id }}, true)" class="btn-sm">啟用</button>
                 {% endif %}
                 {% else %}
-                <span style="color:#bbb; font-size:12px;">（自己）</span>
+                <span class="pill idle">目前登入</span>
                 {% endif %}
             </td>
         </tr>

@@ -2,7 +2,7 @@
 {% block title %}品項設定 - Ultra Fitness 後台{% endblock %}
 {% block content %}
 <h1 class="page-title">品項設定</h1>
-<p style="color:#888; font-size:13px; margin-top:-14px; margin-bottom:20px;">
+<p class="page-hint">
     這裡設定的品項會出現在「營收」頁面的下拉快選裡；有填單價的話，選了會自動帶出金額（還是可以手動改）。
 </p>
 
@@ -36,7 +36,7 @@
 </div>
 
 <div class="panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+    <div class="panel-head">
         <h2 style="margin:0;">品項清單（共 <span id="visible-count">{{ items|length }}</span> 筆）</h2>
         <div style="min-width:180px;">
             <select id="f-filter-category" onchange="filterByCategory()">
@@ -56,8 +56,8 @@
             <td><span id="name-{{ item.id }}">{{ item.item_name }}</span></td>
             <td><span id="price-{{ item.id }}">{% if item.default_price %}${{ "{:,.0f}".format(item.default_price) }}{% else %}未設定{% endif %}</span></td>
             <td>
-                <button onclick="editItem({{ item.id }}, '{{ item.item_name }}', {{ item.default_price or 'null' }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">編輯</button>
-                <button onclick="removeItem({{ item.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer; color:#c0392b;">刪除</button>
+                <button onclick="editItem({{ item.id }}, '{{ item.item_name }}', {{ item.default_price or 'null' }})" class="btn-sm">編輯</button>
+                <button onclick="removeItem({{ item.id }})" class="btn-sm danger">刪除</button>
             </td>
         </tr>
         {% endfor %}

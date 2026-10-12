@@ -5,7 +5,7 @@
 
 <div class="panel">
     <h2>新增會員 / 教練</h2>
-    <p style="color:#888; font-size:12px; margin-top:-8px;">單次會籍不用填會籍起訖日，直接去「營收」頁登記一筆即可；單月會籍才需要填。</p>
+    <p class="hint">單次會籍不用填會籍起訖日，直接去「營收」頁登記一筆即可；單月會籍才需要填。</p>
     <div id="create-msg" class="msg"></div>
     <div class="form-row">
         <div>
@@ -61,17 +61,17 @@
                 {% if m.membership_start_date or m.membership_active_until %}
                 {{ m.membership_start_date or "?" }} ~ {{ m.membership_active_until or "?" }}
                 {% else %}
-                <span style="color:#bbb;">未設定</span>
+                <span style="color:var(--muted);">未設定</span>
                 {% endif %}
             </td>
             <td>{% if m.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
             <td>
-                <button onclick="issueBindingCode({{ m.id }})" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">產生綁定碼</button>
-                <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" style="font-size:12px; padding:5px 10px; border:1px solid #ddd; background:#fff; cursor:pointer;">編輯會籍</button>
+                <button onclick="issueBindingCode({{ m.id }})" class="btn-sm">產生綁定碼</button>
+                <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" class="btn-sm">編輯會籍</button>
             </td>
         </tr>
         <tr id="membership-edit-{{ m.id }}" style="display:none;">
-            <td colspan="6" style="background:#fafafa;">
+            <td colspan="6" style="background:var(--accent-soft);">
                 <div class="form-row" style="margin-bottom:0; align-items:flex-end;">
                     <div><label>會籍起日</label><input type="date" id="edit-start-{{ m.id }}"></div>
                     <div><label>會籍迄日</label><input type="date" id="edit-end-{{ m.id }}"></div>
@@ -88,7 +88,7 @@
 
 <div class="panel" style="font-size:13px; color:#666;">
     場租教練不算會員，名單、綁定碼都在左側選單的
-    <a href="/admin/venue-coaches/page" style="color:#f48124; font-weight:700;">場租教練</a> 頁面管理。
+    <a href="/admin/venue-coaches/page" style="font-weight:700;">場租教練</a> 頁面管理。
 </div>
 
 <script>

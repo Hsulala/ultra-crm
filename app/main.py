@@ -49,6 +49,7 @@ app.include_router(internal.router)
 
 # LIFF 靜態頁面：本機/測試用同源掛載，正式環境通常會改放到 CDN 或另外的靜態網站服務，
 # 但保留這個掛載點對本機開發沒有壞處。
+app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.mount("/liff", StaticFiles(directory="liff", html=True), name="liff")
 
 

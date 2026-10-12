@@ -60,12 +60,12 @@
 {% endif %}
 
 <div class="panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-        <h2 style="margin:0;">當天班表／約課（{{ target_date }}{% if is_today %} · 今天{% endif %}）</h2>
-        <div style="display:flex; gap:8px;">
-            <a href="/admin/?d={{ prev_date }}" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">← 前一天</a>
-            <a href="/admin/" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">今天</a>
-            <a href="/admin/?d={{ next_date }}" style="padding:6px 12px; border:1px solid #ddd; background:#fff; text-decoration:none; color:#333; font-size:12px;">後一天 →</a>
+    <div class="panel-head">
+        <h2 style="margin:0;">當天班表／約課（{{ target_date }}{% if is_today %}，今天{% endif %}）</h2>
+        <div class="btn-row">
+            <a href="/admin/?d={{ prev_date }}" class="btn-ghost">‹ 前一天</a>
+            <a href="/admin/" class="btn-ghost">今天</a>
+            <a href="/admin/?d={{ next_date }}" class="btn-ghost">後一天 ›</a>
         </div>
     </div>
 
@@ -77,15 +77,15 @@
             {% for col in columns %}
             <th>
                 {{ col.coach_name }}<br>
-                <span style="font-weight:400; color:#f48124; font-size:11px;">
+                <span>
                     {{ col.shift_labels|join('/') if col.shift_labels else '未排班' }}
                 </span>
             </th>
             {% endfor %}
             {% for col in venue_columns %}
-            <th style="color:#888;">自由教練{{ col.slot_number }}</th>
+            <th style="color:var(--muted);">自由教練{{ col.slot_number }}</th>
             {% endfor %}
-            <th style="color:#888;">皮拉提斯</th>
+            <th style="color:var(--muted);">皮拉提斯</th>
         </tr>
         {% for h in hours %}
         <tr>
@@ -135,27 +135,35 @@
 </div>
 
 <style>
-    .wb-grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:24px; margin-top:8px; padding-top:16px; border-top:1px solid #f0f0f0; }
-    .wb-title { font-size:12px; font-weight:700; color:#645242; margin-bottom:8px; }
-    .wb-shifts { display:flex; flex-direction:column; gap:6px; margin-bottom:8px; }
-    .wb-shift { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; background:#fafafa; border-left:4px solid #ddd; font-size:13px; }
-    .wb-shift.done { border-left-color:#1a8a3f; background:#f1faf4; }
-    .wb-shift.now { border-left-color:#f48124; background:#fff4eb; font-weight:700; }
-    .wb-shift .s { color:#666; font-size:12px; }
-    .wb-link { font-size:13px; font-weight:700; color:#f48124; text-decoration:none; }
-    .wb-link:hover { text-decoration:underline; }
-    table.wb-table td { padding:6px 4px; font-size:13px; }
+    .wb-grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:24px; margin-top:12px; padding-top:18px; border-top:2.5px solid var(--ink); }
+    .wb-title { font-size:14px; font-weight:800; margin-bottom:8px; }
+    .wb-shifts { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+    .wb-shift { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 14px; background:var(--soft); border:2px solid var(--rule); border-radius:12px; font-size:14px; }
+    .wb-shift.done { border-color:var(--ok); background:var(--ok-bg); }
+    .wb-shift.now { border-color:var(--ink); background:var(--accent-soft); font-weight:700; box-shadow:3px 3px 0 var(--ink); }
+    .wb-shift .s { color:var(--muted); font-size:13px; }
+    .wb-link { font-size:14px; font-weight:800; color:var(--ink); text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:2px; text-underline-offset:4px; }
+    .wb-link:hover { background:var(--accent-soft); }
+    table.wb-table td { padding:6px 4px; font-size:14px; }
     table.wb-table td.r { text-align:right; white-space:nowrap; }
-    .wb-cat { font-size:11px; color:#d96a10; background:#fff1e2; padding:1px 6px; margin-left:8px; }
+    .wb-cat { font-size:12px; font-weight:700; color:#b85a12; background:var(--accent-soft); border:1.5px solid var(--ink); border-radius:999px; padding:0 8px; margin-left:8px; }
     @media (max-width: 768px) { .wb-grid { grid-template-columns: 1fr; } }
-    table.grid-table { border-collapse: collapse; font-size: 12px; width: 100%; table-layout: fixed; }
-    table.grid-table th { background:#faf5ef; padding:6px 4px; text-align:center; border:1px solid #f0f0f0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .grid-hour-col { width: 52px; font-weight:700; color:#888; text-align:center; background:#fafafa; }
-    td.grid-cell { border:1px solid #f0f0f0; padding:3px; width:82px; vertical-align:top; }
-    .grid-booking { background:#fff1e2; color:#d96a10; font-size:11px; padding:3px 5px; margin-bottom:3px; border-radius:3px; display:flex; justify-content:space-between; align-items:center; gap:4px; }
-    .grid-cancel { cursor:pointer; color:#c0392b; font-weight:700; padding:0 2px; }
-    .grid-add-btn { width:100%; background:#fafafa; border:1px dashed #ddd; color:#bbb; font-size:14px; cursor:pointer; padding:3px 0; }
-    .grid-add-btn:hover { background:#fff1e2; color:#f48124; border-color:#f48124; }
+    table.grid-table { border-collapse: separate; border-spacing: 5px; font-size: 12px; table-layout: fixed; margin: -5px; width: calc(100% + 10px); }
+    table.grid-table th { border: 0; color: var(--ink); font-size: 14px; font-weight: 800; padding: 4px 4px 8px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: transparent; }
+    table.grid-table th span { display: inline-block; margin-top: 3px; padding: 0 9px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--accent-soft); color: #b85a12; font-size: 11px; font-weight: 700; }
+    table.grid-table td { padding: 0; border: 0; background: transparent; }
+    table.grid-table tr:hover > td { background: transparent; }
+    .grid-hour-col { width: 58px; font: italic 800 17px var(--display); color: var(--ink); text-align: center; vertical-align: top; padding-top: 9px !important; }
+    td.grid-cell { position: relative; background: var(--soft) !important; border: 1.5px solid var(--rule) !important; border-radius: 12px; padding: 4px; width: 84px; height: 46px; vertical-align: top; }
+    td.grid-cell:hover { background: var(--accent-soft) !important; }
+    .grid-booking { background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; margin-bottom: 3px; border: 2px solid var(--ink); border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 4px; line-height: 1.35; word-break: break-all; }
+    .grid-cancel { cursor: pointer; color: #fff; font-weight: 800; padding: 0 4px; border-radius: 999px; }
+    .grid-cancel:hover { background: var(--ink); }
+    .grid-add-btn { width: 100%; height: 34px; background: transparent; border: 0; border-radius: 9px; color: transparent; font-size: 18px; font-weight: 800; cursor: pointer; }
+    td.grid-cell:hover .grid-add-btn, .grid-add-btn:focus-visible { color: var(--accent); }
+    .grid-booking ~ .grid-add-btn { position: absolute; right: 5px; bottom: 5px; width: 24px; height: 24px; border-radius: 50%; font-size: 15px; line-height: 1; padding: 0; }
+    td.grid-cell:hover .grid-booking ~ .grid-add-btn { background: #fff; border: 2px solid var(--ink); }
+    td.grid-cell input, td.grid-cell select { padding: 4px 6px; font-size: 11px; border-radius: 8px; margin-bottom: 3px; }
 </style>
 
 <script>
@@ -226,7 +234,7 @@
                 <option value="1">1人</option>
                 <option value="2">1對2</option>
             </select>
-            <button style="width:100%; font-size:11px; background:#f48124; color:#fff; border:none; padding:3px;">送出</button>
+            <button style="width:100%; font-size:11px; background:var(--accent); color:#fff; border:2px solid var(--ink); border-radius:999px; font-weight:700; padding:3px; cursor:pointer;">送出</button>
         `;
         const [nameInput, coachSelect, sizeSelect, submitBtn] = wrap.children;
         submitBtn.onclick = () => addVenueBooking(slotNumber, hourStr, nameInput.value.trim(), coachSelect.value, Number(sizeSelect.value));

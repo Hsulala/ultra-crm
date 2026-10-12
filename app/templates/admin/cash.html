@@ -155,7 +155,7 @@
         </div>
     </div>
 
-    <h2 style="margin-top:20px;">今日異動</h2>
+    <h2>今日異動</h2>
     {% if today_movements %}
     <table>
         <tr><th>時間</th><th>類型</th><th>金額</th><th>對象</th><th>用途</th><th>登記人</th><th>狀態</th></tr>
@@ -219,25 +219,25 @@
 {% endif %}
 
 <style>
-    .notice { background:#fff4eb; border-left:4px solid #f48124; color:#645242; font-size:13px; line-height:1.7; padding:10px 14px; margin-bottom:14px; }
-    .notice.warn { background:#fdeaea; border-left-color:#c0392b; color:#8a2a20; }
-    .link { color:#f48124; font-size:13px; font-weight:700; text-decoration:none; }
-    .link:hover { text-decoration:underline; }
-    .muted { color:#aaa; }
-    .flag { display:inline-block; font-size:11px; padding:1px 6px; margin-left:6px; background:#fdeaea; color:#c0392b; font-weight:700; }
-    .flag.soft { background:#fff1e2; color:#d96a10; }
-    .shift-cell { display:inline-block; font-size:12px; font-weight:700; padding:2px 8px; text-decoration:none; }
-    .shift-cell.balanced { background:#e3f7e9; color:#1a8a3f; }
-    .shift-cell.short { background:#fdeaea; color:#c0392b; }
-    .shift-cell.over { background:#fff1e2; color:#d96a10; }
-    .shift-cell.missing { border:1px dashed #c0392b; color:#c0392b; }
-    .denom-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(190px, 1fr)); gap:10px; margin:8px 0 10px; }
-    .denom-item { display:flex; align-items:center; gap:8px; border:1px solid #eee; padding:6px 10px; background:#fafafa; }
-    .denom-item .denom-label { width:62px; font-weight:700; color:#333; }
-    .denom-item input { width:70px; padding:6px 8px; }
-    .denom-item .denom-sub { font-size:12px; color:#888; min-width:56px; text-align:right; }
-    .total-line { font-size:18px; font-weight:700; margin:6px 0 16px; }
-    .total-line span { color:#f48124; font-size:22px; }
+    .notice { background:var(--accent-soft); border:2px solid var(--ink); border-radius:12px; color:var(--ink); font-size:14px; line-height:1.7; padding:10px 14px; margin-bottom:14px; }
+    .notice.warn { background:var(--danger-bg); color:var(--danger); }
+    .link { color:var(--ink); font-size:14px; font-weight:800; text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:2px; text-underline-offset:4px; }
+    .link:hover { background:var(--accent-soft); }
+    .flag { display:inline-block; font-size:12px; padding:0 8px; margin-left:6px; background:var(--danger-bg); color:var(--danger); font-weight:700; border:1.5px solid var(--ink); border-radius:999px; }
+    .flag.soft { background:var(--accent-soft); color:#b85a12; }
+    .shift-cell { display:inline-block; font-size:13px; font-weight:700; padding:1px 12px; text-decoration:none; border:2px solid var(--ink); border-radius:999px; }
+    .shift-cell.balanced { background:var(--ok-bg); color:var(--ok); }
+    .shift-cell.short { background:var(--danger-bg); color:var(--danger); }
+    .shift-cell.over { background:var(--accent-soft); color:#b85a12; }
+    .muted { color:var(--muted); }
+    .shift-cell.missing { border-style:dashed; border-color:var(--danger); color:var(--danger); background:#fff; }
+    .denom-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:10px; margin:8px 0 10px; }
+    .denom-item { display:flex; align-items:center; gap:8px; border:2px solid var(--ink); border-radius:12px; padding:6px 10px; background:var(--soft); }
+    .denom-item .denom-label { width:62px; font-weight:800; }
+    .denom-item input { width:64px; padding:5px 8px; }
+    .denom-item .denom-sub { font-size:12px; color:var(--muted); min-width:64px; margin-left:auto; text-align:right; white-space:nowrap; }
+    .total-line { font-size:18px; font-weight:800; margin:6px 0 16px; }
+    .total-line span { color:var(--accent); font:italic 800 30px var(--display); }
     @media (min-width: 900px) { .cash-stats { grid-template-columns: repeat(3, 1fr); } }
     /* 手機：表格欄位不要被擠成直排，寬度不夠就讓面板橫向捲動 */
     @media (max-width: 768px) {

@@ -19,8 +19,8 @@
     {% include "admin/_revenue_entry.html" %}
 </div>
 
-<div class="panel" style="padding-bottom:0;">
-    <div style="display:flex; gap:0; border-bottom:2px solid #eee; margin-bottom:16px;">
+<div class="panel">
+    <div class="seg">
         <div id="tab-today" class="rev-tab active" onclick="switchTab('today')">今日明細</div>
         <div id="tab-month" class="rev-tab" onclick="switchTab('month')">本月明細</div>
     </div>
@@ -56,7 +56,7 @@
         <div class="empty">本月尚無營收資料</div>
         {% endif %}
 
-        <h2 style="margin-top:20px;">本月教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計）</h2>
+        <h2>本月教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計）</h2>
         {% if coach_performance %}
         <table>
             <tr><th>教練</th><th>重訓堂數</th><th>皮拉提斯堂數</th></tr>
@@ -68,7 +68,7 @@
         <div class="empty">本月尚無課程紀錄</div>
         {% endif %}
 
-        <h2 style="margin-top:20px;">本月收款明細（共 {{ month_entries|length }} 筆）</h2>
+        <h2>本月收款明細（共 {{ month_entries|length }} 筆）</h2>
         {% if month_entries %}
         <table>
             <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
@@ -89,8 +89,12 @@
 </div>
 
 <style>
-    .rev-tab { padding:10px 20px; font-size:14px; font-weight:700; color:#888; cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; }
-    .rev-tab.active { color:#f48124; border-bottom-color:#f48124; }
+    .seg { display: flex; gap: 10px; margin-bottom: 20px; }
+    .rev-tab { padding: 5px 22px; font-weight: 800; color: var(--ink); cursor: pointer; background: #fff; border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 3px 3px 0 var(--ink); }
+    .rev-tab:hover { background: var(--accent-soft); }
+    .rev-tab.active { background: var(--ink); color: #fff; }
+    #panel-month h2 { margin-top: 28px; }
+    #panel-month h2:first-child { margin-top: 0; }
 </style>
 
 <script>
