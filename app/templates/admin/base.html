@@ -66,6 +66,11 @@
         }
         .sidebar nav a:hover { background: var(--accent-soft); }
         .sidebar nav a.active { background: var(--ink); color: #fff; }
+        .sidebar .collapse-toggle, .mobile-topbar button { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+        .sidebar .collapse-toggle .ico, .mobile-topbar button .ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+        .mobile-topbar button .ico { width: 20px; height: 20px; }
+        .sidebar .collapse-toggle .ico { transition: transform .2s ease; }
+        html.sidebar-collapsed .sidebar .collapse-toggle .ico { transform: rotate(180deg); }
         .sidebar nav a .ico { width: 20px; height: 20px; flex: none; margin-right: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
         .sidebar nav a.active .ico { stroke: var(--accent); }
         html.sidebar-collapsed .sidebar nav a .label { display: none; }
@@ -186,7 +191,7 @@
 <body>
     {% macro ico(d) %}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ d }}"/></svg>{% endmacro %}
     <div class="mobile-topbar">
-        <button onclick="toggleMobileNav()" aria-label="選單">☰</button>
+        <button onclick="toggleMobileNav()" aria-label="選單">{{ ico("M4 6h16 M4 12h16 M4 18h16") }}</button>
         <div class="brand">Ultra<span style="color:var(--accent)">.</span></div>
     </div>
     <div class="sidebar-backdrop" onclick="toggleMobileNav()"></div>
@@ -194,7 +199,7 @@
         <div class="brand">
             <span class="dot">U</span><span class="label"><b>Ultra<i>.</i></b><small>後台管理</small></span>
         </div>
-        <button class="collapse-toggle" onclick="toggleSidebarCollapse()" title="收起/展開選單">«</button>
+        <button class="collapse-toggle" onclick="toggleSidebarCollapse()" title="收起/展開選單">{{ ico("M11 17l-5-5 5-5 M18 17l-5-5 5-5") }}</button>
         <nav id="side-nav">
             <a href="/admin/" data-key="dashboard" class="{% if active == 'dashboard' %}active{% endif %}" title="總覽">{{ ico("M3 3h7v9H3z M14 3h7v5h-14z M14 12h7v9h-7z M3 16h7v5H3z") }}<span class="label">總覽</span></a>
             <a href="/admin/members/page" data-key="members" class="{% if active == 'members' %}active{% endif %}" title="會員">{{ ico("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75") }}<span class="label">會員</span></a>

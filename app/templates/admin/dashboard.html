@@ -4,21 +4,22 @@
 {% block content %}
 <h1 class="page-title">總覽</h1>
 
+{% macro si(path) %}<svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;margin-right:6px;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="{{ path }}"/></svg>{% endmacro %}
 <div class="stat-grid">
     <div class="stat-card">
-        <div class="label">今日營收</div>
+        <div class="label">{{ si("M2 6h20v12H2z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") }}今日營收</div>
         <div class="value">${{ "{:,.0f}".format(today_revenue) }}</div>
     </div>
     <div class="stat-card">
-        <div class="label">今日現金收款</div>
+        <div class="label">{{ si("M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4") }}今日現金收款</div>
         <div class="value">${{ "{:,.0f}".format(today_cash_sales) }}</div>
     </div>
     <div class="stat-card">
-        <div class="label">今日約課（堂）</div>
+        <div class="label">{{ si("M8 2v4 M16 2v4 M3 6h18v15H3z M3 10h18 M9 16l2 2 4-4") }}今日約課（堂）</div>
         <div class="value">{{ today_booking_count }}</div>
     </div>
     <div class="stat-card">
-        <div class="label">本月營收</div>
+        <div class="label">{{ si("M22 7l-8.5 8.5-5-5L2 17 M16 7h6v6") }}本月營收</div>
         <div class="value">${{ "{:,.0f}".format(month_revenue) }}</div>
     </div>
 </div>
