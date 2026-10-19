@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from app.config import settings
-from app.routers import internal, line_webhook
+from app.routers import internal, line_webhook, remote
 from app.routers.admin import accounts as admin_accounts
 from app.routers.admin import auth as admin_auth
 from app.routers.admin import bookings as admin_bookings
@@ -46,6 +46,8 @@ app.include_router(liff_schedule.router)
 app.include_router(liff_venue_bookings.router)
 app.include_router(line_webhook.router)
 app.include_router(internal.router)
+app.include_router(remote.router)
+app.add_exception_handler(remote.RemoteError, remote.remote_error_handler)
 
 # LIFF 靜態頁面：本機/測試用同源掛載，正式環境通常會改放到 CDN 或另外的靜態網站服務，
 # 但保留這個掛載點對本機開發沒有壞處。
