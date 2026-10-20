@@ -17,12 +17,14 @@ from app.services.binding_service import generate_binding_code
 from app.templating import templates
 
 router = APIRouter(prefix="/admin/members", tags=["admin-members"])
+MEMBERS_PAGE_SIZE = 50
 
 
 @router.get("/page")
 def members_page(
     request: Request,
     q: Optional[str] = None,
+    page: int = 1,
     admin: AdminUser = Depends(require_role("manager", "front_desk")),
     db: Session = Depends(get_db),
 ):
@@ -30,7 +32,15 @@ def members_page(
     if q:
         like = f"%{q}%"
         query = query.filter(or_(Member.name.ilike(like), Member.member_no.ilike(like)))
-    members = query.order_by(Member.created_at.desc()).all()
+    total = query.count()
+    pages = max(1, (total + MEMBERS_PAGE_SIZE - 1) // MEMBERS_PAGE_SIZE)
+    page = min(max(page, 1), pages)
+    members = (
+        query.order_by(Member.created_at.desc(), Member.id.desc())
+        .offset((page - 1) * MEMBERS_PAGE_SIZE)
+        .limit(MEMBERS_PAGE_SIZE)
+        .all()
+    )
 
     return templates.TemplateResponse(
         request,
@@ -40,6 +50,9 @@ def members_page(
             "active": "members",
             "members": members,
             "q": q or "",
+            "page": page,
+            "pages": pages,
+            "total": total,
         },
     )
 

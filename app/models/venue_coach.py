@@ -16,3 +16,4 @@ class VenueRentalCoach(Base, TimestampMixin):
     phone: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     line_user_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    import_batch: Mapped[Optional[str]] = mapped_column(String, nullable=True)

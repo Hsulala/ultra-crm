@@ -10,6 +10,7 @@ from app.routers.admin import bookings as admin_bookings
 from app.routers.admin import cash as admin_cash
 from app.routers.admin import class_records as admin_class_records
 from app.routers.admin import contracts as admin_contracts
+from app.routers.admin import legacy_import as admin_legacy_import
 from app.routers.admin import members as admin_members
 from app.routers.admin import revenue as admin_revenue
 from app.routers.admin import schedule as admin_schedule
@@ -30,6 +31,7 @@ app.include_router(admin_auth.router)
 app.include_router(admin_accounts.router)
 app.include_router(admin_bookings.router)
 app.include_router(admin_members.router)
+app.include_router(admin_legacy_import.router)
 app.include_router(admin_contracts.router)
 app.include_router(admin_class_records.router)
 app.include_router(admin_schedule.router)

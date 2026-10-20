@@ -9,7 +9,7 @@
         <div class="value">${{ "{:,.0f}".format(daily.total) }}</div>
     </div>
     <div class="stat-card">
-        <div class="label">本月營收</div>
+        <div class="label">{{ "本月" if is_current_month else month_label }}營收</div>
         <div class="value">${{ "{:,.0f}".format(monthly.total) }}</div>
     </div>
 </div>
@@ -22,8 +22,15 @@
 <div class="panel">
     <div class="seg">
         <div id="tab-today" class="rev-tab active" onclick="switchTab('today')">今日明細</div>
-        <div id="tab-month" class="rev-tab" onclick="switchTab('month')">本月明細</div>
+        <div id="tab-month" class="rev-tab" onclick="switchTab('month')">{{ "本月" if is_current_month else month_label }}明細</div>
     </div>
+    <form method="get" action="/admin/revenue/page" class="month-pick" id="month-pick" style="display:none;">
+        <a href="/admin/revenue/page?year={{ prev_ym[0] }}&month={{ prev_ym[1] }}&tab=month">‹ 上個月</a>
+        <input type="month" name="ym" value="{{ '%04d-%02d' % (year, month) }}" onchange="this.form.submit()">
+        <input type="hidden" name="tab" value="month">
+        {% if next_ym %}<a href="/admin/revenue/page?year={{ next_ym[0] }}&month={{ next_ym[1] }}&tab=month">下個月 ›</a>{% endif %}
+        {% if not is_current_month %}<a href="/admin/revenue/page?tab=month">回到本月</a>{% endif %}
+    </form>
 
     <div id="panel-today">
         {% if today_entries %}
@@ -44,7 +51,7 @@
     </div>
 
     <div id="panel-month" style="display:none;">
-        <h2>本月分類小計</h2>
+        <h2>{{ month_label }}分類小計（合計 ${{ "{:,.0f}".format(monthly.total) }}）</h2>
         {% if monthly.by_category %}
         <table>
             <tr><th>品項分類</th><th>小計</th></tr>
@@ -53,10 +60,10 @@
             {% endfor %}
         </table>
         {% else %}
-        <div class="empty">本月尚無營收資料</div>
+        <div class="empty">{{ month_label }}尚無營收資料</div>
         {% endif %}
 
-        <h2>本月教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計）</h2>
+        <h2>{{ month_label }}教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計；舊課堂報表的紀錄以合約教練計）</h2>
         {% if coach_performance %}
         <table>
             <tr><th>教練</th><th>重訓堂數</th><th>皮拉提斯堂數</th></tr>
@@ -65,25 +72,27 @@
             {% endfor %}
         </table>
         {% else %}
-        <div class="empty">本月尚無課程紀錄</div>
+        <div class="empty">{{ month_label }}尚無課程紀錄</div>
         {% endif %}
 
-        <h2>本月收款明細（共 {{ month_entries|length }} 筆）</h2>
+        <h2>{{ month_label }}收款明細（共 {{ month_entries|length }} 筆）</h2>
         {% if month_entries %}
         <table>
-            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>姓名</th><th>教練</th><th>金額</th><th>付款方式</th></tr>
             {% for e in month_entries %}
             <tr>
                 <td>{{ e.entry_date }}</td>
                 <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
                 <td>{{ e.item_name }}</td>
+                <td>{{ e.customer_name or "" }}</td>
+                <td>{{ e.coach_name or "" }}</td>
                 <td>${{ "{:,.0f}".format(e.amount) }}</td>
                 <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
             </tr>
             {% endfor %}
         </table>
         {% else %}
-        <div class="empty">本月尚無收款紀錄</div>
+        <div class="empty">{{ month_label }}尚無收款紀錄</div>
         {% endif %}
     </div>
 </div>
@@ -103,6 +112,13 @@
         document.getElementById("tab-month").classList.toggle("active", tab === "month");
         document.getElementById("panel-today").style.display = tab === "today" ? "block" : "none";
         document.getElementById("panel-month").style.display = tab === "month" ? "block" : "none";
+        document.getElementById("month-pick").style.display = tab === "month" ? "flex" : "none";
     }
+    {% if initial_tab == "month" %}switchTab("month");{% endif %}
 </script>
+<style>
+    .month-pick { gap: 14px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; font-size: 14px; }
+    .month-pick a { font-weight: 700; white-space: nowrap; }
+    .panel .month-pick input[type=month] { width: 190px; flex: none; }
+</style>
 {% endblock %}

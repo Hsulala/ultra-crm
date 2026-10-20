@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Numeric, String
+from sqlalchemy import CheckConstraint, Date, ForeignKey, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, TimestampMixin
@@ -46,6 +46,9 @@ class Contract(Base, TimestampMixin):
     used_sessions: Mapped[int] = mapped_column(nullable=False, default=0)
     expiry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(String, nullable=False, default="active")
+    # 舊資料匯入時原表上的文字（已退費、換約、原表單價：5000振興…）
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    import_batch: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
 class ContractMember(Base):
@@ -56,3 +59,17 @@ class ContractMember(Base):
 
     contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id"), primary_key=True)
     member_id: Mapped[int] = mapped_column(ForeignKey("members.id"), primary_key=True)
+
+
+class ContractSession(Base, TimestampMixin):
+    """合約的每一堂上課紀錄（目前來源是舊「課堂報表」的 1～25 堂日期欄）。
+    session_date 為空表示原表有寫但日期打錯，原文留在 raw_value。"""
+
+    __tablename__ = "contract_sessions"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    contract_id: Mapped[int] = mapped_column(ForeignKey("contracts.id"), nullable=False, index=True)
+    session_no: Mapped[int] = mapped_column(nullable=False)
+    session_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, index=True)
+    raw_value: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    import_batch: Mapped[Optional[str]] = mapped_column(String, nullable=True)

@@ -40,7 +40,7 @@
 </div>
 
 <div class="panel">
-    <h2>會員名單（共 {{ members|length }} 位）</h2>
+    <h2>會員名單（共 {{ total }} 位）</h2>
     <div class="form-row" style="margin-bottom:16px;">
         <div>
             <input type="text" id="f-search" placeholder="搜尋姓名或會員編號..." value="{{ q }}" onkeydown="if(event.key==='Enter') doSearch()">
@@ -81,6 +81,13 @@
         </tr>
         {% endfor %}
     </table>
+    {% if pages > 1 %}
+    <div style="display:flex; gap:14px; justify-content:center; margin-top:14px; font-size:14px;">
+        {% if page > 1 %}<a href="/admin/members/page?q={{ q|urlencode }}&page={{ page - 1 }}" style="font-weight:700">上一頁</a>{% endif %}
+        <span>第 {{ page }} / {{ pages }} 頁</span>
+        {% if page < pages %}<a href="/admin/members/page?q={{ q|urlencode }}&page={{ page + 1 }}" style="font-weight:700">下一頁</a>{% endif %}
+    </div>
+    {% endif %}
     {% else %}
     <div class="empty">目前沒有會員資料</div>
     {% endif %}

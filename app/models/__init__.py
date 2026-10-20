@@ -9,7 +9,7 @@ from app.models.cash import (
     CashMovement,
 )
 from app.models.class_record import ClassRecord
-from app.models.contract import CONTRACT_STATUS_LABELS, Contract, ContractMember
+from app.models.contract import CONTRACT_STATUS_LABELS, Contract, ContractMember, ContractSession
 from app.models.item_catalog import ItemCatalogEntry
 from app.models.member import MEMBER_ROLE_LABELS, Member
 from app.models.notification_log import NotificationLog
@@ -35,6 +35,7 @@ __all__ = [
     "CoachUnavailability",
     "Contract",
     "ContractMember",
+    "ContractSession",
     "CONTRACT_STATUS_LABELS",
     "ItemCatalogEntry",
     "Member",

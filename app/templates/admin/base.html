@@ -218,6 +218,7 @@
             {% endif %}
             {% if current_user.role == "super_admin" %}
             <a href="/admin/accounts/page" data-key="accounts" class="{% if active == 'accounts' %}active{% endif %}" title="帳號管理">{{ ico("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z") }}<span class="label">帳號管理</span></a>
+            <a href="/admin/legacy-import/page" data-key="legacy-import" class="{% if active == 'legacy-import' %}active{% endif %}" title="匯入舊資料">{{ ico("M12 3v12 M7 10l5 5 5-5 M5 21h14") }}<span class="label">匯入舊資料</span></a>
             {% endif %}
         </nav>
         <button class="nav-reset" onclick="resetNavOrder()" title="把選單順序還原成預設">還原選單順序</button>

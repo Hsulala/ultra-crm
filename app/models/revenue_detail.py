@@ -44,3 +44,7 @@ class RevenueDetail(Base, TimestampMixin):
     amount: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
     contract_id: Mapped[Optional[int]] = mapped_column(ForeignKey("contracts.id"), nullable=True)
     entered_by_id: Mapped[int] = mapped_column(ForeignKey("admin_users.id"), nullable=False)
+    # 舊銷售總表的「姓名」「教練」原文（場租教練不在 members 表，coach_id 放不進去）
+    customer_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    coach_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    import_batch: Mapped[Optional[str]] = mapped_column(String, nullable=True)

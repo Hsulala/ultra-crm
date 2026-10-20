@@ -101,28 +101,89 @@
 </div>
 
 <div class="panel">
-    <h2>合約列表（共 {{ contracts|length }} 筆）</h2>
+    <h2>合約列表（{{ view_labels[view] }}，共 {{ total }} 筆）</h2>
+    <form method="get" action="/admin/contracts/page" class="form-row contract-filter">
+        <div>
+            <label>搜尋</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="學員、教練或合約編號">
+        </div>
+        <div>
+            <label>狀態</label>
+            <select name="view">
+                {% for key, label in view_labels.items() %}<option value="{{ key }}" {% if key == view %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>類型</label>
+            <select name="course">
+                <option value="">全部</option>
+                <option value="strength" {% if course == 'strength' %}selected{% endif %}>重訓</option>
+                <option value="pilates" {% if course == 'pilates' %}selected{% endif %}>皮拉提斯</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;"><button class="primary" type="submit">查詢</button></div>
+    </form>
     {% if contracts %}
     <table>
-        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>類型</th><th>狀態</th><th>堂數</th><th>購買日期</th></tr>
+        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>類型</th><th>狀態</th><th>堂數</th><th>購買日期</th><th>最近上課</th></tr>
         {% for c in contracts %}
-        <tr>
+        <tr class="contract-row" onclick="toggleSessions({{ c.id }})" title="點一下看每堂上課日期">
             <td>#{{ c.contract_no or c.id }}</td>
             <td>{{ c.student_names }}</td>
             <td>{{ c.coach_name }}</td>
             <td>{{ {"strength": "重訓", "pilates": "皮拉提斯"}[c.course_type] }}</td>
-            <td><span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span></td>
+            <td>{% if c.status == 'active' and c.used_sessions >= c.total_sessions %}<span class="pill idle">已上完</span>{% else %}<span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span>{% endif %}</td>
             <td>{{ c.used_sessions }} / {{ c.total_sessions }}</td>
             <td>{{ c.purchase_date }}</td>
+            <td>{{ c.last_session or "—" }}</td>
+        </tr>
+        <tr id="sessions-{{ c.id }}" class="session-detail" style="display:none">
+            <td colspan="8">
+                <div class="session-meta">單價 {{ "{:,.0f}".format(c.unit_price) }} 元{% if c.note %}　備註：{{ c.note }}{% endif %}</div>
+                {% if c.sessions %}
+                <ol class="session-list">
+                    {% for s in c.sessions %}
+                    <li><span class="no">第 {{ s.session_no }} 堂</span>{% if s.session_date %}{{ s.session_date }}{% else %}<span class="raw" title="原表日期寫法有誤">原表：{{ s.raw_value }}</span>{% endif %}</li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <div class="empty">還沒有上課紀錄</div>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </table>
+    {% if pages > 1 %}
+    <div class="pager">
+        {% set base = "/admin/contracts/page?q=" ~ (q|urlencode) ~ "&view=" ~ view ~ "&course=" ~ course %}
+        {% if page > 1 %}<a href="{{ base }}&page={{ page - 1 }}">上一頁</a>{% endif %}
+        <span>第 {{ page }} / {{ pages }} 頁</span>
+        {% if page < pages %}<a href="{{ base }}&page={{ page + 1 }}">下一頁</a>{% endif %}
+    </div>
+    {% endif %}
     {% else %}
-    <div class="empty">目前沒有合約資料</div>
+    <div class="empty">沒有符合條件的合約</div>
     {% endif %}
 </div>
 
+<style>
+    .contract-filter { margin-bottom: 14px; }
+    .contract-row { cursor: pointer; }
+    .session-detail td { background: var(--soft); }
+    .session-meta { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .session-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; font-size: 13.5px; }
+    .session-list .no { color: var(--muted); margin-right: 6px; }
+    .session-list .raw { color: var(--warn); }
+    .pager { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 14px; font-size: 14px; }
+    .pager a { font-weight: 700; }
+</style>
+
 <script>
+    function toggleSessions(id) {
+        const row = document.getElementById("sessions-" + id);
+        row.style.display = row.style.display === "none" ? "table-row" : "none";
+    }
+
     function toggleNewStudent() {
         const isNew = document.getElementById("f-new-student-toggle").checked;
         document.getElementById("existing-student-row").style.display = isNew ? "none" : "flex";

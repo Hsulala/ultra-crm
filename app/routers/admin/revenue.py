@@ -1,5 +1,6 @@
 import json
 from datetime import date as date_cls
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
@@ -26,19 +27,30 @@ router = APIRouter(prefix="/admin/revenue", tags=["admin-revenue"])
 @router.get("/page")
 def revenue_page(
     request: Request,
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    ym: Optional[str] = None,
+    tab: str = "today",
     admin: AdminUser = Depends(require_role("manager")),
     db: Session = Depends(get_db),
 ):
     today = taipei_today()
+    if ym and len(ym) == 7 and ym[4] == "-" and ym[:4].isdigit() and ym[5:].isdigit():
+        year, month = int(ym[:4]), int(ym[5:])
+    if not year or not month or not (1 <= month <= 12) or (year, month) > (today.year, today.month):
+        year, month = today.year, today.month
+    is_current_month = (year, month) == (today.year, today.month)
+    prev_ym = (year - 1, 12) if month == 1 else (year, month - 1)
+    next_ym = None if is_current_month else ((year + 1, 1) if month == 12 else (year, month + 1))
     daily = get_daily_summary(db, entry_date=today)
-    monthly = get_monthly_summary(db, year=today.year, month=today.month)
-    coach_performance = get_coach_class_counts(db, year=today.year, month=today.month)
+    monthly = get_monthly_summary(db, year=year, month=month)
+    coach_performance = get_coach_class_counts(db, year=year, month=month)
     coach_names = {m.id: m.name for m in db.query(Member).filter(Member.role == "coach").all()}
 
     today_entries = (
         db.query(RevenueDetail).filter(RevenueDetail.entry_date == today).order_by(RevenueDetail.id.desc()).all()
     )
-    month_entries = get_monthly_entries(db, year=today.year, month=today.month)
+    month_entries = get_monthly_entries(db, year=year, month=month)
 
     category_labels = {
         "service": "服務",
@@ -56,6 +68,13 @@ def revenue_page(
             "current_user": admin,
             "active": "revenue",
             "today": today,
+            "year": year,
+            "month": month,
+            "month_label": f"{year - 1911} 年 {month} 月",
+            "is_current_month": is_current_month,
+            "prev_ym": prev_ym,
+            "next_ym": next_ym,
+            "initial_tab": "month" if tab == "month" or not is_current_month else "today",
             "daily": daily,
             "monthly": monthly,
             "coach_performance": [

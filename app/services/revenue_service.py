@@ -4,7 +4,7 @@ from typing import Dict, List, Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models import ClassRecord, Contract, RevenueDetail
+from app.models import ClassRecord, Contract, ContractSession, RevenueDetail
 from app.services.schedule_service import month_bounds
 
 
@@ -100,9 +100,23 @@ def get_coach_class_counts(db: Session, *, year: int, month: int) -> List[Dict]:
         .all()
     )
 
+    # 舊「課堂報表」匯入的上課紀錄沒有記每堂是誰帶，算給合約登記的店內教練
+    legacy_rows = (
+        db.query(Contract.coach_id, Contract.course_type, func.count(ContractSession.id))
+        .join(Contract, Contract.id == ContractSession.contract_id)
+        .filter(
+            Contract.coach_id.isnot(None),
+            ContractSession.session_date >= start,
+            ContractSession.session_date < end,
+        )
+        .group_by(Contract.coach_id, Contract.course_type)
+        .all()
+    )
+
     by_coach: Dict[int, Dict[str, int]] = {}
-    for coach_id, course_type, count in rows:
-        by_coach.setdefault(coach_id, {"strength": 0, "pilates": 0})[course_type] = count
+    for coach_id, course_type, count in list(rows) + list(legacy_rows):
+        counts = by_coach.setdefault(coach_id, {"strength": 0, "pilates": 0})
+        counts[course_type] += count
 
     return [
         {"coach_id": coach_id, "strength_count": counts["strength"], "pilates_count": counts["pilates"]}

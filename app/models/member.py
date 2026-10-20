@@ -30,3 +30,4 @@ class Member(Base, TimestampMixin):
     membership_start_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     membership_active_until: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    import_batch: Mapped[Optional[str]] = mapped_column(String, nullable=True)
