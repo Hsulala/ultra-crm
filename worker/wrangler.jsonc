@@ -1,0 +1,20 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ultra-crm",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-21",
+  "compatibility_flags": ["nodejs_compat"],
+  // 部署前先預先編譯模板、複製靜態檔（npm run build）
+  "build": { "command": "npm run build" },
+  // /static（後台背景圖）與 /liff（LINE 頁面）由 Cloudflare 直接提供
+  "assets": { "directory": "./public", "binding": "ASSETS", "html_handling": "auto-trailing-slash", "not_found_handling": "none" },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "ultra-crm", "database_id": "5ed993c8-b222-4624-ad77-e70c1bc1cd7f", "migrations_dir": "migrations" }
+  ],
+  // 讓程式在資料庫附近執行（一頁要查很多次資料庫，來回時間差很多）
+  "placement": { "mode": "smart" },
+  "observability": { "enabled": true }
+  // 金鑰與密碼用 secret 設定（npx wrangler secret put 名稱）：
+  //   SESSION_SECRET_KEY（至少 32 字元）、ADMIN_BOOTSTRAP_USERNAME／PASSWORD（只在沒有任何帳號時用）、
+  //   LINE_CHANNEL_ID、LINE_CHANNEL_SECRET、LINE_CHANNEL_ACCESS_TOKEN、INTERNAL_CRON_SECRET、REMOTE_READ_KEY、REMOTE_WRITE_KEY
+}

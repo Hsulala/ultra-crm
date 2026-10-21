@@ -1,0 +1,249 @@
+{% extends "admin/base.html" %}
+{% block title %}合約管理 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">合約管理</h1>
+
+<div class="panel">
+    <h2>新增合約</h2>
+    <div id="create-msg" class="msg"></div>
+
+    <label style="display:flex; align-items:center; gap:6px; font-size:13px; margin-bottom:12px; cursor:pointer;">
+        <input type="checkbox" id="f-new-student-toggle" onchange="toggleNewStudent()" style="width:auto;">
+        這是全新學員（還沒有會員資料，這裡直接建）
+    </label>
+
+    <div class="form-row">
+        <div>
+            <label>合約編號（選填）</label>
+            <input type="text" id="f-contract-no" placeholder="例如 00123">
+        </div>
+        <div>
+            <label>教練</label>
+            <select id="f-coach">
+                <option value="">請選擇教練</option>
+                <optgroup label="店內教練">
+                    {% for c in coaches %}<option value="m-{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                </optgroup>
+                <optgroup label="場租教練（僅限皮拉提斯）">
+                    {% for c in venue_coaches %}<option value="v-{{ c.id }}">{{ c.name }}</option>{% endfor %}
+                </optgroup>
+            </select>
+        </div>
+        <div>
+            <label>課程類型</label>
+            <select id="f-course-type">
+                <option value="strength">重訓</option>
+                <option value="pilates">皮拉提斯</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="form-row" id="existing-student-row">
+        <div>
+            <label>學員（1對2 合約再選第二位）</label>
+            <select id="f-student1">
+                <option value="">請選擇學員</option>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>共同學員（選填，1對2；若共同學員是新學員，用上面「全新學員」勾選處理）</label>
+            <select id="f-student2">
+                <option value="">無</option>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-row" id="new-student-row" style="display:none;">
+        <div>
+            <label>新學員姓名</label>
+            <input type="text" id="f-new-student-name" placeholder="姓名">
+        </div>
+        <div>
+            <label>新學員電話（選填）</label>
+            <input type="text" id="f-new-student-phone" placeholder="電話">
+        </div>
+        <div>
+            <label>1對2 共同學員（選填，既有會員）</label>
+            <select id="f-student2-with-new">
+                <option value="">無</option>
+                {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="form-row">
+        <div>
+            <label>購買日期</label>
+            <input type="date" id="f-purchase-date">
+        </div>
+        <div>
+            <label>單價</label>
+            <input type="number" id="f-unit-price" placeholder="金額">
+        </div>
+        <div>
+            <label>總堂數</label>
+            <input type="number" id="f-total-sessions" placeholder="堂數">
+        </div>
+        <div>
+            <label>狀態</label>
+            <select id="f-status">
+                <option value="active">進行中</option>
+                <option value="free">FREE</option>
+                <option value="refunded">已退費</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createContract()">新增合約</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>合約列表（{{ view_labels[view] }}，共 {{ total }} 筆）</h2>
+    <form method="get" action="/admin/contracts/page" class="form-row contract-filter">
+        <div>
+            <label>搜尋</label>
+            <input type="text" name="q" value="{{ q }}" placeholder="學員、教練或合約編號">
+        </div>
+        <div>
+            <label>狀態</label>
+            <select name="view">
+                {% for key, label in view_labels.items() %}<option value="{{ key }}" {% if key == view %}selected{% endif %}>{{ label }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label>類型</label>
+            <select name="course">
+                <option value="">全部</option>
+                <option value="strength" {% if course == 'strength' %}selected{% endif %}>重訓</option>
+                <option value="pilates" {% if course == 'pilates' %}selected{% endif %}>皮拉提斯</option>
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;"><button class="primary" type="submit">查詢</button></div>
+    </form>
+    {% if contracts %}
+    <table>
+        <tr><th>合約編號</th><th>學員</th><th>教練</th><th>類型</th><th>狀態</th><th>堂數</th><th>購買日期</th><th>最近上課</th></tr>
+        {% for c in contracts %}
+        <tr class="contract-row" onclick="toggleSessions({{ c.id }})" title="點一下看每堂上課日期">
+            <td>#{{ c.contract_no or c.id }}</td>
+            <td>{{ c.student_names }}</td>
+            <td>{{ c.coach_name }}</td>
+            <td>{{ {"strength": "重訓", "pilates": "皮拉提斯"}[c.course_type] }}</td>
+            <td>{% if c.status == 'active' and c.used_sessions >= c.total_sessions %}<span class="pill idle">已上完</span>{% else %}<span class="badge badge-{{ c.status }}">{{ {"active": "進行中", "refunded": "已退費", "free": "FREE"}[c.status] }}</span>{% endif %}</td>
+            <td>{{ c.used_sessions }} / {{ c.total_sessions }}</td>
+            <td>{{ c.purchase_date }}</td>
+            <td>{{ c.last_session or "—" }}</td>
+        </tr>
+        <tr id="sessions-{{ c.id }}" class="session-detail" style="display:none">
+            <td colspan="8">
+                <div class="session-meta">單價 {{ (c.unit_price)|fmt0 }} 元{% if c.note %}　備註：{{ c.note }}{% endif %}</div>
+                {% if c.sessions %}
+                <ol class="session-list">
+                    {% for s in c.sessions %}
+                    <li><span class="no">第 {{ s.session_no }} 堂</span>{% if s.session_date %}{{ s.session_date }}{% else %}<span class="raw" title="原表日期寫法有誤">原表：{{ s.raw_value }}</span>{% endif %}</li>
+                    {% endfor %}
+                </ol>
+                {% else %}
+                <div class="empty">還沒有上課紀錄</div>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% if pages > 1 %}
+    <div class="pager">
+        {% set base = "/admin/contracts/page?q=" ~ (q|urlencode) ~ "&view=" ~ view ~ "&course=" ~ course %}
+        {% if page > 1 %}<a href="{{ base }}&page={{ page - 1 }}">上一頁</a>{% endif %}
+        <span>第 {{ page }} / {{ pages }} 頁</span>
+        {% if page < pages %}<a href="{{ base }}&page={{ page + 1 }}">下一頁</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">沒有符合條件的合約</div>
+    {% endif %}
+</div>
+
+<style>
+    .contract-filter { margin-bottom: 14px; }
+    .contract-row { cursor: pointer; }
+    .session-detail td { background: var(--soft); }
+    .session-meta { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .session-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 14px; font-size: 13.5px; }
+    .session-list .no { color: var(--muted); margin-right: 6px; }
+    .session-list .raw { color: var(--warn); }
+    .pager { display: flex; gap: 14px; align-items: center; justify-content: center; margin-top: 14px; font-size: 14px; }
+    .pager a { font-weight: 700; }
+</style>
+
+<script>
+    function toggleSessions(id) {
+        const row = document.getElementById("sessions-" + id);
+        row.style.display = row.style.display === "none" ? "table-row" : "none";
+    }
+
+    function toggleNewStudent() {
+        const isNew = document.getElementById("f-new-student-toggle").checked;
+        document.getElementById("existing-student-row").style.display = isNew ? "none" : "flex";
+        document.getElementById("new-student-row").style.display = isNew ? "flex" : "none";
+    }
+
+    async function createContract() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+
+        const coachValue = document.getElementById("f-coach").value;
+        const isNewStudent = document.getElementById("f-new-student-toggle").checked;
+
+        if (!coachValue) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請選擇教練";
+            return;
+        }
+        const [coachKind, coachIdStr] = coachValue.split("-");
+
+        const payload = {
+            coach_id: coachKind === "m" ? Number(coachIdStr) : null,
+            venue_coach_id: coachKind === "v" ? Number(coachIdStr) : null,
+            course_type: document.getElementById("f-course-type").value,
+            purchase_date: document.getElementById("f-purchase-date").value,
+            unit_price: Number(document.getElementById("f-unit-price").value || 0),
+            total_sessions: Number(document.getElementById("f-total-sessions").value || 0),
+            contract_no: document.getElementById("f-contract-no").value.trim() || null,
+            status: document.getElementById("f-status").value,
+            member_ids: [],
+        };
+
+        if (isNewStudent) {
+            const name = document.getElementById("f-new-student-name").value.trim();
+            if (!name) {
+                msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填新學員姓名";
+                return;
+            }
+            payload.new_student_name = name;
+            payload.new_student_phone = document.getElementById("f-new-student-phone").value.trim() || null;
+            const student2 = document.getElementById("f-student2-with-new").value;
+            if (student2) payload.member_ids = [Number(student2)];
+        } else {
+            const student1 = document.getElementById("f-student1").value;
+            const student2 = document.getElementById("f-student2").value;
+            if (!student1) {
+                msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請選擇學員";
+                return;
+            }
+            payload.member_ids = [student1, student2].filter(Boolean).map(Number);
+        }
+
+        const res = await fetch("/admin/contracts", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+</script>
+{% endblock %}

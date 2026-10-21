@@ -1,0 +1,116 @@
+{% extends "admin/base.html" %}
+{% block title %}場租教練 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">場租教練</h1>
+<p class="page-hint">
+    場租教練不是店內正職，是租場地帶自己客人的教練，總覽頁「場租教練」欄位就是照這裡的名單顯示。
+</p>
+
+<div class="panel">
+    <h2>新增場租教練</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>姓名</label>
+            <input type="text" id="f-name" placeholder="場租教練姓名/代號">
+        </div>
+        <div>
+            <label>電話（選填）</label>
+            <input type="text" id="f-phone" placeholder="電話">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createCoach()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>場租教練清單（共 {{ coaches|length }} 位）</h2>
+    {% if coaches %}
+    <table>
+        <tr><th>姓名</th><th>電話</th><th>LINE 綁定</th><th>狀態</th><th>操作</th></tr>
+        {% for c in coaches %}
+        <tr id="row-{{ c.id }}">
+            <td id="name-{{ c.id }}">{{ c.name }}</td>
+            <td id="phone-{{ c.id }}">{{ c.phone or "-" }}</td>
+            <td>{% if c.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
+            <td>{% if c.is_active %}<span class="pill ok">啟用中</span>{% else %}<span class="pill off">已停用</span>{% endif %}</td>
+            <td>
+                <button onclick="renameCoach({{ c.id }})" class="btn-sm">改名</button>
+                <button onclick="issueBindingCode({{ c.id }})" class="btn-sm">產生綁定碼</button>
+                {% if c.is_active %}
+                <button onclick="setActive({{ c.id }}, false)" class="btn-sm danger">停用</button>
+                {% else %}
+                <button onclick="setActive({{ c.id }}, true)" class="btn-sm">啟用</button>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有場租教練資料</div>
+    {% endif %}
+</div>
+
+<script>
+    async function createCoach() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const name = document.getElementById("f-name").value.trim();
+        const phone = document.getElementById("f-phone").value.trim();
+        if (!name) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填姓名";
+            return;
+        }
+        const res = await fetch("/admin/venue-coaches", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name, phone: phone || null }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function renameCoach(coachId) {
+        const currentName = document.getElementById(`name-${coachId}`).textContent.trim();
+        const currentPhone = document.getElementById(`phone-${coachId}`).textContent.trim();
+        const name = prompt("姓名", currentName);
+        if (name === null || !name.trim()) return;
+        const phone = prompt("電話（留空表示沒有）", currentPhone === "-" ? "" : currentPhone);
+        if (phone === null) return;
+        const res = await fetch(`/admin/venue-coaches/${coachId}`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: name.trim(), phone: phone.trim() || null }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "改名失敗");
+        }
+    }
+
+    async function issueBindingCode(venueCoachId) {
+        const res = await fetch(`/admin/venue-coaches/${venueCoachId}/binding-code`, { method: "POST" });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`綁定碼：${data.code}\n效期至：${data.expires_at}\n\n請口頭告知場租教練本人。`);
+        } else {
+            alert("產生失敗");
+        }
+    }
+
+    async function setActive(coachId, active) {
+        const action = active ? "啟用" : "停用";
+        if (!confirm(`確定要${action}這位場租教練嗎？`)) return;
+        const res = await fetch(`/admin/venue-coaches/${coachId}/${active ? "activate" : "deactivate"}`, { method: "POST" });
+        if (res.ok) { location.reload(); } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || `${action}失敗`);
+        }
+    }
+</script>
+{% endblock %}

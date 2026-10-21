@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Ultra Fitness 後台{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;1,800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            /* 與「店家總覽 Store Hub」同一套：大理石底、白色面板、粗黑框、硬邊陰影、橘色重點 */
+            --paper: #e5e4e1; --panel: #ffffff; --ink: #111111; --muted: #5d5c58; --rule: #d2d0cb;
+            --accent: #ec7b2d; --accent-deep: #e36f20; --accent-soft: #fdf1e7;
+            --ok: #2e6b4a; --ok-bg: #dcefe3; --warn: #8a5a08; --warn-bg: #f8e8c6;
+            --danger: #a1382a; --danger-bg: #f5dad4; --info: #34508f; --info-bg: #e3e9f7;
+            --font: "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+            --display: "Barlow Condensed", "Noto Sans TC", "PingFang TC", sans-serif;
+            /* 舊名稱別名，讓各頁面原本的寫法繼續有效 */
+            --brand: var(--accent); --brand-deep: var(--accent-deep); --brand-tint: var(--accent-soft); --brand-soft: var(--accent-soft);
+            --brand-orange: var(--accent); --brand-orange-dark: var(--accent-deep); --brand-ink: var(--ink); --brand-brown: var(--ink);
+            --soft: #f3f2ef; --line: var(--rule); --bad: var(--danger); --bad-bg: var(--danger-bg);
+            --canvas: var(--paper); --surface: var(--panel); --ink-2: var(--ink);
+            --offset: 5px 5px 0 var(--ink);
+        }
+        * { box-sizing: border-box; }
+        html { --sidebar-width: 232px; --sidebar-width-collapsed: 76px; background: var(--paper) url("/static/marble.png") repeat; background-size: 900px 900px; }
+        body { margin: 0; color: var(--ink); font: 15px/1.6 var(--font); font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+        ::selection { background: var(--accent); color: #fff; }
+        a { color: var(--accent-deep); }
+        :focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
+
+        /* ---------- 側欄 ---------- */
+        .sidebar {
+            position: fixed; top: 16px; left: 16px; bottom: 16px; width: var(--sidebar-width);
+            background: var(--panel); color: var(--ink); display: flex; flex-direction: column;
+            border: 3px solid var(--ink); border-radius: 22px; box-shadow: var(--offset);
+            z-index: 100; transition: width .15s ease; overflow: hidden;
+        }
+        html.sidebar-collapsed .sidebar { width: var(--sidebar-width-collapsed); }
+
+        .sidebar .brand { display: flex; align-items: center; gap: 12px; padding: 18px 16px 12px; overflow: hidden; white-space: nowrap; }
+        .sidebar .brand .dot {
+            position: relative; width: 40px; height: 40px; flex: none; border-radius: 12px; background: var(--ink); color: #fff;
+            display: grid; place-items: center; font: italic 800 26px/1 var(--display); padding-right: 6px;
+        }
+        .sidebar .brand .dot::after { content: ""; position: absolute; right: 7px; bottom: 8px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+        .sidebar .brand .label { display: flex; flex-direction: column; line-height: 1.1; }
+        .sidebar .brand .label b { font: italic 800 25px/1 var(--display); text-transform: uppercase; letter-spacing: -.01em; }
+        .sidebar .brand .label b i { color: var(--accent); font-style: normal; }
+        .sidebar .brand .label small { font-size: 12px; color: var(--muted); font-weight: 700; margin-top: 3px; letter-spacing: .1em; }
+        html.sidebar-collapsed .sidebar .brand .label { display: none; }
+        html.sidebar-collapsed .sidebar .brand { justify-content: center; padding-left: 0; padding-right: 0; }
+
+        .sidebar .collapse-toggle {
+            background: #fff; border: 2px solid var(--ink); color: var(--ink); cursor: pointer; font-weight: 700;
+            width: 30px; height: 30px; margin: 0 16px 8px auto; flex: none; font-size: 13px; font-family: inherit; border-radius: 999px;
+            box-shadow: 2px 2px 0 var(--ink);
+        }
+        .sidebar .collapse-toggle:hover { background: var(--accent-soft); }
+        html.sidebar-collapsed .sidebar .collapse-toggle { margin: 0 auto 8px; }
+
+        .sidebar nav { display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; padding: 6px 12px; }
+        .sidebar nav a {
+            color: var(--ink); text-decoration: none; padding: 9px 16px; border-radius: 999px; border: 2.5px solid transparent;
+            font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; display: flex; align-items: center; cursor: grab;
+        }
+        .sidebar nav a:hover { background: var(--accent-soft); }
+        .sidebar nav a.active { background: var(--ink); color: #fff; }
+        .sidebar .collapse-toggle, .mobile-topbar button { display: inline-flex; align-items: center; justify-content: center; padding: 0; }
+        .sidebar .collapse-toggle .ico, .mobile-topbar button .ico { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+        .mobile-topbar button .ico { width: 20px; height: 20px; }
+        .sidebar .collapse-toggle .ico { transition: transform .2s ease; }
+        html.sidebar-collapsed .sidebar .collapse-toggle .ico { transform: rotate(180deg); }
+        .sidebar nav a .ico { width: 20px; height: 20px; flex: none; margin-right: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .sidebar nav a.active .ico { stroke: var(--accent); }
+        html.sidebar-collapsed .sidebar nav a .label { display: none; }
+        html.sidebar-collapsed .sidebar nav a { justify-content: center; padding: 9px 4px; }
+        html.sidebar-collapsed .sidebar nav a .ico { margin-right: 0; }
+        .sidebar nav a.sortable-ghost { opacity: .35; background: var(--accent-soft); }
+        .sidebar nav a.sortable-chosen { cursor: grabbing; }
+        .sidebar .nav-reset { background: none; border: none; color: var(--muted); font-size: 12px; cursor: pointer; font-family: inherit; padding: 4px 18px 8px; text-align: left; }
+        .sidebar .nav-reset:hover { color: var(--ink); text-decoration: underline; }
+        html.sidebar-collapsed .sidebar .nav-reset { display: none; }
+
+        .sidebar .user { font-size: 13px; color: var(--muted); padding: 12px 16px 18px; overflow: hidden; border-top: 2px solid var(--ink); }
+        .sidebar .user .username { white-space: nowrap; display: block; margin-bottom: 10px; font-weight: 600; }
+        html.sidebar-collapsed .sidebar .user .username { display: none; }
+        .sidebar .user button {
+            background: #fff; border: 2.5px solid var(--ink); color: var(--ink); border-radius: 999px; box-shadow: 3px 3px 0 var(--ink);
+            padding: 7px 12px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit; width: 100%; transition: transform .08s, box-shadow .08s;
+        }
+        .sidebar .user button:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+        .sidebar .user button:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+
+        .sidebar-backdrop { display: none; }
+        .container { max-width: 1120px; margin: 0 auto; padding: 30px 28px 70px; margin-left: calc(var(--sidebar-width) + 40px); transition: margin-left .15s ease; }
+        html.sidebar-collapsed .container { margin-left: calc(var(--sidebar-width-collapsed) + 40px); }
+        .container.container-wide { max-width: none; }
+        .mobile-topbar { display: none; }
+
+        @media (max-width: 768px) {
+            .mobile-topbar { display: flex; align-items: center; gap: 12px; background: var(--panel); border-bottom: 3px solid var(--ink); padding: 0 14px; height: 56px; position: sticky; top: 0; z-index: 90; }
+            .mobile-topbar button { background: #fff; border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 2px 2px 0 var(--ink); font-size: 16px; font-weight: 700; cursor: pointer; width: 38px; height: 34px; }
+            .mobile-topbar .brand { font: italic 800 24px var(--display); text-transform: uppercase; }
+            .sidebar { left: calc(-1 * var(--sidebar-width) - 30px); top: 0; bottom: 0; border-radius: 0 22px 22px 0; transition: left .2s ease; }
+            html.sidebar-collapsed .sidebar { width: var(--sidebar-width); }
+            html.mobile-nav-open .sidebar { left: 0; }
+            html.mobile-nav-open .sidebar-backdrop { display: block; position: fixed; inset: 0; background: rgba(17,17,17,.5); z-index: 99; }
+            html.sidebar-collapsed .sidebar .brand .label { display: flex; }
+            html.sidebar-collapsed .sidebar nav a .label { display: inline; }
+            html.sidebar-collapsed .sidebar .user .username { display: block; }
+            html.sidebar-collapsed .sidebar .nav-reset { display: block; }
+            html.sidebar-collapsed .sidebar .brand { justify-content: flex-start; padding-left: 16px; }
+            html.sidebar-collapsed .sidebar nav a { justify-content: flex-start; padding: 9px 16px; }
+            html.sidebar-collapsed .sidebar nav a .ico { margin-right: 12px; }
+            .sidebar .collapse-toggle { display: none; }
+            .container, html.sidebar-collapsed .container { margin-left: 0; padding: 20px 14px 60px; }
+        }
+
+        /* ---------- 標題與面板 ---------- */
+        h1.page-title { font-size: 36px; font-weight: 900; line-height: 1.15; margin: 0 0 22px; letter-spacing: -.01em; color: var(--ink); }
+        h1.page-title::after { content: "."; display: inline; width: auto; border: 0; margin: 0; color: var(--accent); }
+        .page-hint { color: var(--muted); font-size: 14px; margin: -12px 0 22px; max-width: 70ch; }
+        .hint { color: var(--muted); font-size: 13px; margin: -6px 0 14px; }
+
+        .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--panel); border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--offset); padding: 14px 18px; }
+        .stat-card .label { font-size: 14px; font-weight: 700; color: var(--ink); margin: 0; }
+        .stat-card .value { font: italic 800 40px/1.1 var(--display); margin-top: 4px; color: var(--ink); }
+        .stat-card:first-child { background: var(--accent-soft); }
+        .stat-card:first-child .value { color: var(--accent); }
+
+        .panel { background: var(--panel); border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--offset); padding: 22px; margin-bottom: 24px; overflow-x: auto; }
+        .panel h2 { font-size: 18px; font-weight: 900; letter-spacing: 0; margin: 0 0 14px; color: var(--ink); border: 0; padding: 0; }
+        .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+        .panel-head h2 { margin: 0; }
+
+        /* ---------- 表格 ---------- */
+        table { width: 100%; border-collapse: collapse; font-size: 14.5px; }
+        th { text-align: left; color: var(--ink); background: transparent; font-weight: 800; font-size: 13px; padding: 8px 12px; border-bottom: 2.5px solid var(--ink); white-space: nowrap; }
+        td { padding: 11px 12px; border-bottom: 1.5px solid var(--rule); }
+        tr:last-child td { border-bottom: none; }
+        tbody tr:hover td, table tr:hover > td { background: var(--accent-soft); }
+
+        /* ---------- 標籤 ---------- */
+        .badge, .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; padding: 1px 11px; font-weight: 700; border-radius: 999px; white-space: nowrap; border: 2px solid var(--ink); background: #fff; color: var(--ink); }
+        .badge-student, .badge-free { background: var(--info-bg); color: var(--info); }
+        .badge-coach { background: var(--accent-soft); color: #b85a12; }
+        .badge-active, .pill.ok { background: var(--ok-bg); color: var(--ok); }
+        .badge-refunded, .pill.off { background: var(--danger-bg); color: var(--danger); }
+        .pill.idle { background: #fff; color: var(--muted); }
+        .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+        /* ---------- 表單 ---------- */
+        .form-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+        .form-row > div { flex: 1; min-width: 150px; }
+        label { display: block; font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 4px; }
+        input, select, textarea { width: 100%; padding: 8px 12px; border: 2px solid var(--ink); border-radius: 10px; font: inherit; font-size: 14.5px; color: var(--ink); background: #fff; }
+        textarea { resize: vertical; margin-bottom: 14px; }
+        input[type=checkbox], input[type=radio] { width: auto; accent-color: var(--accent); }
+        input:focus, select:focus, textarea:focus { outline: 0; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+        button.primary, .btn-outline {
+            font: inherit; font-weight: 700; white-space: nowrap; cursor: pointer; border: 2.5px solid var(--ink); border-radius: 999px;
+            box-shadow: 3px 3px 0 var(--ink); padding: 8px 22px; letter-spacing: 0; transition: transform .08s, box-shadow .08s;
+        }
+        button.primary { background: var(--accent); color: #fff; }
+        button.primary:hover { background: var(--accent-deep); }
+        .btn-outline { background: #fff; color: var(--ink); }
+        button.primary:hover, .btn-outline:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--ink); }
+        button.primary:active, .btn-outline:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--ink); }
+
+        .btn-sm { font: inherit; font-size: 13px; font-weight: 700; padding: 3px 14px; border: 2px solid var(--ink); border-radius: 999px; background: #fff; color: var(--ink); cursor: pointer; box-shadow: 2px 2px 0 var(--ink); transition: transform .08s, box-shadow .08s; }
+        .btn-sm:hover { background: var(--accent-soft); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+        .btn-sm:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 var(--ink); }
+        .btn-sm.danger { color: var(--danger); border-color: var(--danger); box-shadow: 2px 2px 0 var(--danger); }
+        .btn-sm.danger:hover { background: var(--danger-bg); box-shadow: 3px 3px 0 var(--danger); }
+        .btn-sm + .btn-sm { margin-left: 8px; }
+        .btn-ghost { padding: 5px 16px; border: 2.5px solid var(--ink); border-radius: 999px; background: #fff; text-decoration: none; color: var(--ink); font-size: 14px; font-weight: 700; white-space: nowrap; box-shadow: 2px 2px 0 var(--ink); transition: transform .08s, box-shadow .08s; }
+        .btn-ghost:hover { background: var(--accent-soft); transform: translate(-1px,-1px); box-shadow: 3px 3px 0 var(--ink); }
+        .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+        .msg { font-size: 14px; font-weight: 600; padding: 9px 14px; margin-bottom: 14px; display: none; border-radius: 12px; border: 2px solid var(--ink); }
+        .msg.success { background: var(--ok-bg); color: var(--ok); }
+        .msg.error { background: var(--danger-bg); color: var(--danger); }
+        .empty { color: var(--muted); font-size: 14px; padding: 28px 0; text-align: center; }
+
+        @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+    </style>
+</head>
+<body>
+    {% macro ico(d) %}<svg class="ico" viewBox="0 0 24 24" aria-hidden="true"><path d="{{ d }}"/></svg>{% endmacro %}
+    <div class="mobile-topbar">
+        <button onclick="toggleMobileNav()" aria-label="選單">{{ ico("M4 6h16 M4 12h16 M4 18h16") }}</button>
+        <div class="brand">Ultra<span style="color:var(--accent)">.</span></div>
+    </div>
+    <div class="sidebar-backdrop" onclick="toggleMobileNav()"></div>
+    <aside class="sidebar">
+        <div class="brand">
+            <span class="dot">U</span><span class="label"><b>Ultra<i>.</i></b><small>後台管理</small></span>
+        </div>
+        <button class="collapse-toggle" onclick="toggleSidebarCollapse()" title="收起/展開選單">{{ ico("M11 17l-5-5 5-5 M18 17l-5-5 5-5") }}</button>
+        <nav id="side-nav">
+            <a href="/admin/" data-key="dashboard" class="{% if active == 'dashboard' %}active{% endif %}" title="總覽">{{ ico("M3 3h7v9H3z M14 3h7v5h-14z M14 12h7v9h-7z M3 16h7v5H3z") }}<span class="label">總覽</span></a>
+            <a href="/admin/members/page" data-key="members" class="{% if active == 'members' %}active{% endif %}" title="會員">{{ ico("M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75") }}<span class="label">會員</span></a>
+            <a href="/admin/contracts/page" data-key="contracts" class="{% if active == 'contracts' %}active{% endif %}" title="合約">{{ ico("M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8") }}<span class="label">合約</span></a>
+            <a href="/admin/class-records/page" data-key="class-records" class="{% if active == 'class-records' %}active{% endif %}" title="紀錄課程">{{ ico("M9 2h6v4H9z M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2 M9 14l2 2 4-4") }}<span class="label">紀錄課程</span></a>
+            <a href="/admin/revenue/page" data-key="revenue" class="{% if active == 'revenue' %}active{% endif %}" title="營收">{{ ico("M3 3v18h18 M18 17V9 M13 17V5 M8 17v-3") }}<span class="label">營收</span></a>
+            {% if current_user.role in ["manager", "front_desk", "super_admin"] %}
+            <a href="/admin/cash/page" data-key="cash" class="{% if active == 'cash' %}active{% endif %}" title="現金對帳">{{ ico("M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4") }}<span class="label">現金對帳</span></a>
+            {% endif %}
+            <a href="/admin/schedule/page" data-key="schedule" class="{% if active == 'schedule' %}active{% endif %}" title="排班">{{ ico("M8 2v4 M16 2v4 M3 6h18v15H3z M3 10h18") }}<span class="label">排班</span></a>
+            {% if current_user.role in ["manager", "front_desk", "super_admin"] %}
+            <a href="/admin/venue-coaches/page" data-key="venue-coaches" class="{% if active == 'venue-coaches' %}active{% endif %}" title="場租教練">{{ ico("M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0z M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") }}<span class="label">場租教練</span></a>
+            {% endif %}
+            {% if current_user.role in ["manager", "super_admin"] %}
+            <a href="/admin/settings/items/page" data-key="settings" class="{% if active == 'settings' %}active{% endif %}" title="設定">{{ ico("M21 4h-7 M10 4H3 M21 12h-9 M8 12H3 M21 20h-5 M12 20H3 M14 2v4 M8 10v4 M16 18v4") }}<span class="label">設定</span></a>
+            {% endif %}
+            {% if current_user.role == "super_admin" %}
+            <a href="/admin/accounts/page" data-key="accounts" class="{% if active == 'accounts' %}active{% endif %}" title="帳號管理">{{ ico("M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z") }}<span class="label">帳號管理</span></a>
+            <a href="/admin/legacy-import/page" data-key="legacy-import" class="{% if active == 'legacy-import' %}active{% endif %}" title="匯入舊資料">{{ ico("M12 3v12 M7 10l5 5 5-5 M5 21h14") }}<span class="label">匯入舊資料</span></a>
+            {% endif %}
+        </nav>
+        <button class="nav-reset" onclick="resetNavOrder()" title="把選單順序還原成預設">還原選單順序</button>
+        <div class="user">
+            <span class="username">{{ current_user.username }}（{{ ADMIN_ROLE_LABELS[current_user.role] }}）</span>
+            <form method="post" action="/admin/logout" style="margin:0;">
+                <button type="submit">登出</button>
+            </form>
+        </div>
+    </aside>
+    <div class="container {% block container_class %}{% endblock %}">
+        {% block content %}{% endblock %}
+    </div>
+    <script>
+        (function () {
+            var collapsed = localStorage.getItem("sidebarCollapsed") === "1";
+            if (collapsed) document.documentElement.classList.add("sidebar-collapsed");
+        })();
+        function toggleSidebarCollapse() {
+            var isCollapsed = document.documentElement.classList.toggle("sidebar-collapsed");
+            localStorage.setItem("sidebarCollapsed", isCollapsed ? "1" : "0");
+        }
+        function toggleMobileNav() {
+            document.documentElement.classList.toggle("mobile-nav-open");
+        }
+
+        // 選單順序：每個人在自己的瀏覽器各自記一份，換瀏覽器或電腦就會是預設順序
+        var NAV_KEY = "navOrder:{{ current_user.username }}";
+        function readNavOrder() {
+            try { return JSON.parse(localStorage.getItem(NAV_KEY) || "[]"); } catch (e) { return []; }
+        }
+        function applyNavOrder() {
+            var nav = document.getElementById("side-nav");
+            var saved = readNavOrder();
+            if (!saved.length) return;
+            // 存過的照順序排，之後新增的選單項目維持原位置接在後面
+            saved.forEach(function (key) {
+                var el = nav.querySelector('a[data-key="' + key + '"]');
+                if (el) nav.appendChild(el);
+            });
+            Array.prototype.slice.call(nav.querySelectorAll("a")).forEach(function (el) {
+                if (saved.indexOf(el.dataset.key) === -1) nav.appendChild(el);
+            });
+        }
+        function resetNavOrder() {
+            try { localStorage.removeItem(NAV_KEY); } catch (e) {}
+            location.reload();
+        }
+        applyNavOrder();
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.2/Sortable.min.js"></script>
+    <script>
+        if (window.Sortable) {
+            Sortable.create(document.getElementById("side-nav"), {
+                animation: 150,
+                ghostClass: "sortable-ghost",
+                delay: 180,
+                delayOnTouchOnly: true,
+                onEnd: function () {
+                    var keys = Array.prototype.map.call(document.querySelectorAll("#side-nav a"), function (el) { return el.dataset.key; });
+                    try { localStorage.setItem(NAV_KEY, JSON.stringify(keys)); } catch (e) {}
+                }
+            });
+        }
+    </script>
+</body>
+</html>

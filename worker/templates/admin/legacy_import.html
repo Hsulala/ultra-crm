@@ -1,0 +1,98 @@
+{% extends "admin/base.html" %}
+{% block title %}匯入舊資料 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">匯入舊資料</h1>
+<p class="page-hint">
+    只有超級管理者看得到這頁。把舊的「課堂報表」「銷售總表」轉好的匯入檔（bundle.json）放進來，
+    先按「試跑」看數字，確認無誤再正式匯入。試跑不會寫進任何資料。
+</p>
+
+<div class="panel">
+    <h2>目前系統裡的資料</h2>
+    <p>會員 {{ current.members }} 位、合約 {{ current.contracts }} 筆、營收 {{ current.revenue }} 筆。
+    {% if current.imported %}已匯入過：{% for b in current.imported %}{{ b }} {% endfor %}{% else %}尚未匯入舊資料。{% endif %}</p>
+</div>
+
+<div class="panel">
+    <h2>上傳匯入檔</h2>
+    <div id="run-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>匯入檔</label>
+            <input type="file" id="f-file" accept=".json,.gz,application/json">
+        </div>
+    </div>
+    <div class="form-row">
+        <label style="display:flex; gap:8px; align-items:center;">
+            <input type="checkbox" id="f-clear"> 先清除目前的會員、合約、預約、營收、班表、現金對帳資料（後台帳號與品項設定保留）
+        </label>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>正式匯入確認（輸入「匯入」兩個字）</label>
+            <input type="text" id="f-confirm" placeholder="匯入">
+        </div>
+        <div style="display:flex; align-items:flex-end; gap:8px;">
+            <button onclick="run('dryrun')">試跑</button>
+            <button class="primary" onclick="run('commit')">正式匯入</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel" id="report" style="display:none">
+    <h2 id="report-title">結果</h2>
+    <table id="report-table"></table>
+    <h2 style="margin-top:18px">需要人工確認的地方（<span id="issue-count">0</span> 筆）</h2>
+    <table id="issue-table"></table>
+</div>
+
+<script>
+    function fmt(n) { return Number(n).toLocaleString("zh-TW"); }
+    function esc(s) { return String(s ?? "").replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+    async function run(mode) {
+        const msg = document.getElementById("run-msg");
+        msg.style.display = "none";
+        const file = document.getElementById("f-file").files[0];
+        if (!file) { msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請先選擇匯入檔"; return; }
+        const clear = document.getElementById("f-clear").checked;
+        if (mode === "commit" && !confirm(clear ? "會先清除目前的營運資料再匯入，確定嗎？" : "確定要正式匯入嗎？")) return;
+
+        const fd = new FormData();
+        fd.append("bundle", file);
+        fd.append("mode", mode);
+        fd.append("clear_existing", clear ? "true" : "false");
+        fd.append("confirm", document.getElementById("f-confirm").value);
+        msg.className = "msg"; msg.style.display = "block"; msg.textContent = mode === "commit" ? "匯入中，請稍候…" : "試跑中，請稍候…";
+
+        const res = await fetch("/admin/legacy-import", { method: "POST", body: fd });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) { msg.className = "msg error"; msg.textContent = body.detail || "失敗"; return; }
+
+        msg.className = "msg ok";
+        msg.textContent = body.committed ? `已匯入（批次 ${body.batch}）。` : "試跑完成，資料沒有寫入。";
+        const f = body.file, d = body.db;
+        const rows = [
+            ["合約", fmt(f.contracts), fmt(d.contracts)],
+            ["上課紀錄（堂）", fmt(f.sessions), fmt(d.sessions)],
+            ["學員", fmt(f.students), fmt(d.students)],
+            ["營收筆數", fmt(f.revenue_rows), fmt(d.revenue_rows)],
+            ["營收合計（元）", fmt(f.revenue_sum), fmt(d.revenue_sum)],
+        ];
+        let html = "<tr><th>項目</th><th>匯入檔</th><th>寫入後資料庫</th></tr>" +
+            rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+        html += `<tr><td>正職教練／場租教練</td><td colspan="2">${body.staff_coaches} 位／${body.venue_coaches} 位</td></tr>`;
+        const st = body.contract_status || {};
+        html += `<tr><td>合約狀態</td><td colspan="2">進行中 ${fmt(st.active||0)}、FREE ${fmt(st.free||0)}、已退費 ${fmt(st.refunded||0)}</td></tr>`;
+        html += `<tr><td>營收對到合約</td><td colspan="2">${fmt(body.revenue_linked_to_contract)} 筆</td></tr>`;
+        const cleared = Object.entries(body.cleared || {}).filter(([, n]) => n > 0);
+        if (cleared.length) html += `<tr><td>先清除</td><td colspan="2">${cleared.map(([t, n]) => `${t} ${n}`).join("、")}</td></tr>`;
+        document.getElementById("report-table").innerHTML = html;
+        document.getElementById("report-title").textContent = body.committed ? "匯入結果" : "試跑結果（未寫入）";
+        document.getElementById("issue-count").textContent = fmt(body.issues);
+        document.getElementById("issue-table").innerHTML = "<tr><th>位置</th><th>情況</th><th>內容</th></tr>" +
+            (body.issue_samples || []).map(i => `<tr><td>${esc(i.where)}</td><td>${esc(i.kind)}</td><td>${esc(i.value)}</td></tr>`).join("");
+        document.getElementById("report").style.display = "block";
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,320 @@
+{% extends "admin/base.html" %}
+{% block title %}總覽 - Ultra Fitness 後台{% endblock %}
+{% block container_class %}container-wide{% endblock %}
+{% block content %}
+<h1 class="page-title">總覽</h1>
+
+{% macro si(path) %}<svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;margin-right:6px;vertical-align:-3px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><path d="{{ path }}"/></svg>{% endmacro %}
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">{{ si("M2 6h20v12H2z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z") }}今日營收</div>
+        <div class="value">${{ (today_revenue)|fmt0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">{{ si("M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2 M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4") }}今日現金收款</div>
+        <div class="value">${{ (today_cash_sales)|fmt0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">{{ si("M8 2v4 M16 2v4 M3 6h18v15H3z M3 10h18 M9 16l2 2 4-4") }}今日約課（堂）</div>
+        <div class="value">{{ today_booking_count }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">{{ si("M22 7l-8.5 8.5-5-5L2 17 M16 7h6v6") }}本月營收</div>
+        <div class="value">${{ (month_revenue)|fmt0 }}</div>
+    </div>
+</div>
+
+{% if can_work %}
+<div class="panel">
+    <h2>今日工作台（{{ today }}）</h2>
+    {% include "admin/_revenue_entry.html" %}
+
+    <div class="wb-grid">
+        <div>
+            <div class="wb-title">現金結帳狀態</div>
+            <div class="wb-shifts">
+                {% for shift in SHIFT_ORDER %}
+                {% set c = shift_status[shift] %}
+                <div class="wb-shift {% if c %}done{% elif shift == current_shift %}now{% endif %}">
+                    <div class="n">{{ SHIFT_LABELS[shift] }}</div>
+                    <div class="s">{% if c %}◆ 已結帳{% elif shift == current_shift %}▸ 目前班次，尚未結帳{% else %}◇ 尚未結帳{% endif %}</div>
+                </div>
+                {% endfor %}
+            </div>
+            <a href="/admin/cash/page" class="wb-link">前往現金對帳 ›</a>
+        </div>
+        <div>
+            <div class="wb-title">今日收款（共 {{ today_entry_count }} 筆{% if today_entry_count > 8 %}，顯示最新 8 筆{% endif %}）</div>
+            {% if today_entries %}
+            <table class="wb-table">
+                {% for e in today_entries %}
+                <tr><td>{{ e.item_name }}<span class="wb-cat">{{ category_labels.get(e.item_category, e.item_category) }}</span></td><td class="r">${{ (e.amount)|fmt0 }}</td><td class="r">{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td></tr>
+                {% endfor %}
+            </table>
+            {% else %}
+            <div class="empty" style="padding:10px 0;">今天還沒有收款紀錄</div>
+            {% endif %}
+            {% if current_user.role in ["manager", "super_admin"] %}<a href="/admin/revenue/page" class="wb-link">看完整營收報表 ›</a>{% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="panel">
+    <div class="panel-head">
+        <h2 style="margin:0;">當天班表／約課（{{ target_date }}{% if is_today %}，今天{% endif %}）</h2>
+        <div class="btn-row">
+            <a href="/admin/?d={{ prev_date }}" class="btn-ghost">‹ 前一天</a>
+            <a href="/admin/" class="btn-ghost">今天</a>
+            <a href="/admin/?d={{ next_date }}" class="btn-ghost">後一天 ›</a>
+        </div>
+    </div>
+
+    {% if columns or venue_columns %}
+    <div style="overflow-x:auto;">
+    <table class="grid-table">
+        <tr>
+            <th class="grid-hour-col">時段</th>
+            {% for col in columns %}
+            <th>
+                {{ col.coach_name }}<br>
+                <span>
+                    {{ col.shift_labels|join('/') if col.shift_labels else '未排班' }}
+                </span>
+            </th>
+            {% endfor %}
+            {% for col in venue_columns %}
+            <th style="color:var(--muted);">自由教練{{ col.slot_number }}</th>
+            {% endfor %}
+            <th style="color:var(--muted);">皮拉提斯</th>
+        </tr>
+        {% for h in hours %}
+        <tr>
+            <td class="grid-hour-col">{{ (h|hh) ~ ":00" }}</td>
+            {% for col in columns %}
+            <td class="grid-cell" id="cell-{{ col.coach_id }}-{{ h|hh }}">
+                {% for booking in col.cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                {% if col.cells[h]|length == 0 %}
+                <button class="grid-add-btn" onclick="showAddForm({{ col.coach_id }}, '{{ h|hh }}:00:00', this)">＋</button>
+                {% endif %}
+            </td>
+            {% endfor %}
+            {% for col in venue_columns %}
+            <td class="grid-cell" id="vcell-{{ col.slot_number }}-{{ h|hh }}">
+                {% for booking in col.cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelVenueBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                {% if col.cells[h]|length == 0 %}
+                <button class="grid-add-btn" onclick="showVenueAddForm({{ col.slot_number }}, '{{ h|hh }}:00:00', this)">＋</button>
+                {% endif %}
+            </td>
+            {% endfor %}
+            <td class="grid-cell" id="pcell-{{ h|hh }}">
+                {% for booking in pilates_cells[h] %}
+                <div class="grid-booking">
+                    {{ booking.label }}
+                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                </div>
+                {% endfor %}
+                <button class="grid-add-btn" onclick="showPilatesAddForm('{{ h|hh }}:00:00', this)">＋</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    </div>
+    {% else %}
+    <div class="empty">目前沒有教練資料，請先去「會員」頁面建立教練</div>
+    {% endif %}
+</div>
+
+<style>
+    .wb-grid { display:grid; grid-template-columns: 1fr 1.4fr; gap:24px; margin-top:12px; padding-top:18px; border-top:2.5px solid var(--ink); }
+    .wb-title { font-size:14px; font-weight:800; margin-bottom:8px; }
+    .wb-shifts { display:flex; flex-direction:column; gap:8px; margin-bottom:10px; }
+    .wb-shift { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:7px 14px; background:var(--soft); border:2px solid var(--rule); border-radius:12px; font-size:14px; }
+    .wb-shift.done { border-color:var(--ok); background:var(--ok-bg); }
+    .wb-shift.now { border-color:var(--ink); background:var(--accent-soft); font-weight:700; box-shadow:3px 3px 0 var(--ink); }
+    .wb-shift .s { color:var(--muted); font-size:13px; }
+    .wb-link { font-size:14px; font-weight:800; color:var(--ink); text-decoration:underline; text-decoration-color:var(--accent); text-decoration-thickness:2px; text-underline-offset:4px; }
+    .wb-link:hover { background:var(--accent-soft); }
+    table.wb-table td { padding:6px 4px; font-size:14px; }
+    table.wb-table td.r { text-align:right; white-space:nowrap; }
+    .wb-cat { font-size:12px; font-weight:700; color:#b85a12; background:var(--accent-soft); border:1.5px solid var(--ink); border-radius:999px; padding:0 8px; margin-left:8px; }
+    @media (max-width: 768px) { .wb-grid { grid-template-columns: 1fr; } }
+    table.grid-table { border-collapse: separate; border-spacing: 5px; font-size: 12px; table-layout: fixed; margin: -5px; width: calc(100% + 10px); }
+    table.grid-table th { border: 0; color: var(--ink); font-size: 14px; font-weight: 800; padding: 4px 4px 8px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: transparent; }
+    table.grid-table th span { display: inline-block; margin-top: 3px; padding: 0 9px; border: 1.5px solid var(--ink); border-radius: 999px; background: var(--accent-soft); color: #b85a12; font-size: 11px; font-weight: 700; }
+    table.grid-table td { padding: 0; border: 0; background: transparent; }
+    table.grid-table tr:hover > td { background: transparent; }
+    .grid-hour-col { width: 58px; font: italic 800 17px var(--display); color: var(--ink); text-align: center; vertical-align: top; padding-top: 9px !important; }
+    td.grid-cell { position: relative; background: var(--soft) !important; border: 1.5px solid var(--rule) !important; border-radius: 12px; padding: 4px; width: 84px; height: 46px; vertical-align: top; }
+    td.grid-cell:hover { background: var(--accent-soft) !important; }
+    .grid-booking { background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; margin-bottom: 3px; border: 2px solid var(--ink); border-radius: 14px; display: flex; justify-content: space-between; align-items: center; gap: 4px; line-height: 1.35; word-break: break-all; }
+    .grid-cancel { cursor: pointer; color: #fff; font-weight: 800; padding: 0 4px; border-radius: 999px; }
+    .grid-cancel:hover { background: var(--ink); }
+    .grid-add-btn { width: 100%; height: 34px; background: transparent; border: 0; border-radius: 9px; color: transparent; font-size: 18px; font-weight: 800; cursor: pointer; }
+    td.grid-cell:hover .grid-add-btn, .grid-add-btn:focus-visible { color: var(--accent); }
+    .grid-booking ~ .grid-add-btn { position: absolute; right: 5px; bottom: 5px; width: 24px; height: 24px; border-radius: 50%; font-size: 15px; line-height: 1; padding: 0; }
+    td.grid-cell:hover .grid-booking ~ .grid-add-btn { background: #fff; border: 2px solid var(--ink); }
+    td.grid-cell input, td.grid-cell select { padding: 4px 6px; font-size: 11px; border-radius: 8px; margin-bottom: 3px; }
+</style>
+
+<script>
+    const TARGET_DATE = "{{ target_date }}";
+    const CONTRACT_OPTIONS = {{ contract_options_json | safe }};
+    const VENUE_COACH_OPTIONS = {{ venue_coach_options_json | safe }};
+    const PILATES_CONTRACT_OPTIONS = {{ pilates_contract_options_json | safe }};
+
+    function showAddForm(coachId, hourStr, btn) {
+        const options = CONTRACT_OPTIONS[coachId] || [];
+        if (options.length === 0) {
+            alert("這位教練目前沒有進行中的合約可以約課");
+            return;
+        }
+        const select = document.createElement("select");
+        select.style.fontSize = "11px";
+        select.style.width = "100%";
+        select.innerHTML = '<option value="">選合約約課...</option>' +
+            options.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
+        select.onchange = () => addBooking(coachId, select.value, hourStr);
+        btn.replaceWith(select);
+        select.focus();
+    }
+
+    async function addBooking(coachId, contractId, hourStr) {
+        if (!contractId) return;
+        const res = await fetch("/admin/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                coach_id: Number(coachId),
+                contract_id: Number(contractId),
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
+        }
+    }
+
+    async function cancelBooking(bookingId) {
+        if (!confirm("確定要取消這筆預約嗎？")) return;
+        const res = await fetch(`/admin/bookings/${bookingId}/cancel`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("取消失敗");
+        }
+    }
+
+    function showVenueAddForm(slotNumber, hourStr, btn) {
+        if (VENUE_COACH_OPTIONS.length === 0) {
+            alert("目前沒有啟用中的場租教練，請先去「場租教練」頁面新增");
+            return;
+        }
+        const wrap = document.createElement("div");
+        wrap.innerHTML = `
+            <input type="text" placeholder="客人姓名" style="width:100%; font-size:11px; margin-bottom:3px; padding:3px;">
+            <select style="width:100%; font-size:11px; margin-bottom:3px;">
+                <option value="">選教練...</option>
+                ${VENUE_COACH_OPTIONS.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}
+            </select>
+            <select style="width:100%; font-size:11px; margin-bottom:3px;">
+                <option value="1">1人</option>
+                <option value="2">1對2</option>
+            </select>
+            <button style="width:100%; font-size:11px; background:var(--accent); color:#fff; border:2px solid var(--ink); border-radius:999px; font-weight:700; padding:3px; cursor:pointer;">送出</button>
+        `;
+        const [nameInput, coachSelect, sizeSelect, submitBtn] = wrap.children;
+        submitBtn.onclick = () => addVenueBooking(slotNumber, hourStr, nameInput.value.trim(), coachSelect.value, Number(sizeSelect.value));
+        btn.replaceWith(wrap);
+        nameInput.focus();
+    }
+
+    async function addVenueBooking(slotNumber, hourStr, customerName, venueCoachId, partySize) {
+        if (!customerName) {
+            alert("請填客人姓名");
+            return;
+        }
+        if (!venueCoachId) {
+            alert("請選教練");
+            return;
+        }
+        const res = await fetch("/admin/venue-bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                venue_coach_id: Number(venueCoachId),
+                customer_name: customerName,
+                party_size: partySize,
+                area: "strength",
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+                slot_number: Number(slotNumber),
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
+        }
+    }
+
+    async function cancelVenueBooking(bookingId) {
+        if (!confirm("確定要取消這筆預約嗎？")) return;
+        const res = await fetch(`/admin/venue-bookings/${bookingId}/cancel`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("取消失敗");
+        }
+    }
+
+    function showPilatesAddForm(hourStr, btn) {
+        if (PILATES_CONTRACT_OPTIONS.length === 0) {
+            alert("目前沒有進行中的皮拉提斯合約可以約課");
+            return;
+        }
+        const select = document.createElement("select");
+        select.style.fontSize = "11px";
+        select.style.width = "100%";
+        select.innerHTML = '<option value="">選合約約課...</option>' +
+            PILATES_CONTRACT_OPTIONS.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
+        select.onchange = () => addPilatesBooking(select.value, hourStr);
+        btn.replaceWith(select);
+        select.focus();
+    }
+
+    async function addPilatesBooking(contractId, hourStr) {
+        if (!contractId) return;
+        const res = await fetch("/admin/bookings", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contract_id: Number(contractId),
+                slot_date: TARGET_DATE,
+                slot_start_time: hourStr,
+            }),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "約課失敗");
+        }
+    }
+</script>
+{% endblock %}

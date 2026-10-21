@@ -1,0 +1,167 @@
+{% extends "admin/base.html" %}
+{% block title %}會員管理 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">會員管理</h1>
+
+<div class="panel">
+    <h2>新增會員 / 教練</h2>
+    <p class="hint">單次會籍不用填會籍起訖日，直接去「營收」頁登記一筆即可；單月會籍才需要填。</p>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>會員編號</label>
+            <input type="text" id="f-member-no" placeholder="例如 UF0003">
+        </div>
+        <div>
+            <label>姓名</label>
+            <input type="text" id="f-name" placeholder="姓名">
+        </div>
+        <div>
+            <label>身分</label>
+            <select id="f-role">
+                <option value="student">學員</option>
+                <option value="coach">教練</option>
+            </select>
+        </div>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>會籍起日（選填，單月會籍）</label>
+            <input type="date" id="f-membership-start">
+        </div>
+        <div>
+            <label>會籍迄日（選填，單月會籍）</label>
+            <input type="date" id="f-membership-end">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createMember()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>會員名單（共 {{ total }} 位）</h2>
+    <div class="form-row" style="margin-bottom:16px;">
+        <div>
+            <input type="text" id="f-search" placeholder="搜尋姓名或會員編號..." value="{{ q }}" onkeydown="if(event.key==='Enter') doSearch()">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="doSearch()">搜尋</button>
+        </div>
+    </div>
+    {% if members %}
+    <table>
+        <tr><th>會員編號</th><th>姓名</th><th>身分</th><th>會籍起訖日</th><th>綁定狀態</th><th>操作</th></tr>
+        {% for m in members %}
+        <tr id="row-{{ m.id }}">
+            <td>{{ m.member_no }}</td>
+            <td>{{ m.name }}</td>
+            <td><span class="badge badge-{{ m.role }}">{{ {"student": "學員", "coach": "教練"}[m.role] if m.role else "未設定" }}</span></td>
+            <td id="membership-display-{{ m.id }}">
+                {% if m.membership_start_date or m.membership_active_until %}
+                {{ m.membership_start_date or "?" }} ~ {{ m.membership_active_until or "?" }}
+                {% else %}
+                <span style="color:var(--muted);">未設定</span>
+                {% endif %}
+            </td>
+            <td>{% if m.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
+            <td>
+                <button onclick="issueBindingCode({{ m.id }})" class="btn-sm">產生綁定碼</button>
+                <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" class="btn-sm">編輯會籍</button>
+            </td>
+        </tr>
+        <tr id="membership-edit-{{ m.id }}" style="display:none;">
+            <td colspan="6" style="background:var(--accent-soft);">
+                <div class="form-row" style="margin-bottom:0; align-items:flex-end;">
+                    <div><label>會籍起日</label><input type="date" id="edit-start-{{ m.id }}"></div>
+                    <div><label>會籍迄日</label><input type="date" id="edit-end-{{ m.id }}"></div>
+                    <div><button class="primary" onclick="saveMembership({{ m.id }})">儲存</button></div>
+                </div>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% if pages > 1 %}
+    <div style="display:flex; gap:14px; justify-content:center; margin-top:14px; font-size:14px;">
+        {% if page > 1 %}<a href="/admin/members/page?q={{ q|urlencode }}&page={{ page - 1 }}" style="font-weight:700">上一頁</a>{% endif %}
+        <span>第 {{ page }} / {{ pages }} 頁</span>
+        {% if page < pages %}<a href="/admin/members/page?q={{ q|urlencode }}&page={{ page + 1 }}" style="font-weight:700">下一頁</a>{% endif %}
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="empty">目前沒有會員資料</div>
+    {% endif %}
+</div>
+
+<div class="panel" style="font-size:13px; color:#666;">
+    場租教練不算會員，名單、綁定碼都在左側選單的
+    <a href="/admin/venue-coaches/page" style="font-weight:700;">場租教練</a> 頁面管理。
+</div>
+
+<script>
+    function doSearch() {
+        const q = document.getElementById("f-search").value.trim();
+        location.href = q ? `/admin/members/page?q=${encodeURIComponent(q)}` : "/admin/members/page";
+    }
+
+    async function createMember() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const payload = {
+            member_no: document.getElementById("f-member-no").value.trim(),
+            name: document.getElementById("f-name").value.trim(),
+            role: document.getElementById("f-role").value,
+            membership_start_date: document.getElementById("f-membership-start").value || null,
+            membership_active_until: document.getElementById("f-membership-end").value || null,
+        };
+        if (!payload.member_no || !payload.name) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫會員編號與姓名";
+            return;
+        }
+        const res = await fetch("/admin/members", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function issueBindingCode(memberId) {
+        const res = await fetch(`/admin/members/${memberId}/binding-code`, { method: "POST" });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`綁定碼：${data.code}\n效期至：${data.expires_at}\n\n請口頭告知會員本人。`);
+        } else {
+            alert("產生失敗");
+        }
+    }
+
+    function toggleMembershipEdit(memberId, start, end) {
+        const row = document.getElementById(`membership-edit-${memberId}`);
+        const showing = row.style.display !== "none";
+        row.style.display = showing ? "none" : "table-row";
+        if (!showing) {
+            document.getElementById(`edit-start-${memberId}`).value = start;
+            document.getElementById(`edit-end-${memberId}`).value = end;
+        }
+    }
+
+    async function saveMembership(memberId) {
+        const payload = {
+            membership_start_date: document.getElementById(`edit-start-${memberId}`).value || null,
+            membership_active_until: document.getElementById(`edit-end-${memberId}`).value || null,
+        };
+        const res = await fetch(`/admin/members/${memberId}/membership`, {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("儲存失敗");
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,124 @@
+{% extends "admin/base.html" %}
+{% block title %}營收報表 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">營收報表</h1>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="label">今日營收（{{ today }}）</div>
+        <div class="value">${{ (daily.total)|fmt0 }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">{{ "本月" if is_current_month else month_label }}營收</div>
+        <div class="value">${{ (monthly.total)|fmt0 }}</div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>新增收款紀錄</h2>
+    {% include "admin/_revenue_entry.html" %}
+</div>
+
+<div class="panel">
+    <div class="seg">
+        <div id="tab-today" class="rev-tab active" onclick="switchTab('today')">今日明細</div>
+        <div id="tab-month" class="rev-tab" onclick="switchTab('month')">{{ "本月" if is_current_month else month_label }}明細</div>
+    </div>
+    <form method="get" action="/admin/revenue/page" class="month-pick" id="month-pick" style="display:none;">
+        <a href="/admin/revenue/page?year={{ prev_ym[0] }}&month={{ prev_ym[1] }}&tab=month">‹ 上個月</a>
+        <input type="month" name="ym" value="{{ ym_value }}" onchange="this.form.submit()">
+        <input type="hidden" name="tab" value="month">
+        {% if next_ym %}<a href="/admin/revenue/page?year={{ next_ym[0] }}&month={{ next_ym[1] }}&tab=month">下個月 ›</a>{% endif %}
+        {% if not is_current_month %}<a href="/admin/revenue/page?tab=month">回到本月</a>{% endif %}
+    </form>
+
+    <div id="panel-today">
+        {% if today_entries %}
+        <table>
+            <tr><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+            {% for e in today_entries %}
+            <tr>
+                <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
+                <td>{{ e.item_name }}</td>
+                <td>${{ (e.amount)|fmt0 }}</td>
+                <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">今日尚無收款紀錄</div>
+        {% endif %}
+    </div>
+
+    <div id="panel-month" style="display:none;">
+        <h2>{{ month_label }}分類小計（合計 ${{ (monthly.total)|fmt0 }}）</h2>
+        {% if monthly.by_category %}
+        <table>
+            <tr><th>品項分類</th><th>小計</th></tr>
+            {% for category, total in monthly.by_category.items() %}
+            <tr><td>{{ category_labels.get(category, category) }}</td><td>${{ (total)|fmt0 }}</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">{{ month_label }}尚無營收資料</div>
+        {% endif %}
+
+        <h2>{{ month_label }}教練帶課堂數（重訓／皮拉提斯分開，以實際帶課教練計；舊課堂報表的紀錄以合約教練計）</h2>
+        {% if coach_performance %}
+        <table>
+            <tr><th>教練</th><th>重訓堂數</th><th>皮拉提斯堂數</th></tr>
+            {% for row in coach_performance %}
+            <tr><td>{{ row.coach_name }}</td><td>{{ row.strength_count }} 堂</td><td>{{ row.pilates_count }} 堂</td></tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">{{ month_label }}尚無課程紀錄</div>
+        {% endif %}
+
+        <h2>{{ month_label }}收款明細（共 {{ month_entries|length }} 筆）</h2>
+        {% if month_entries %}
+        <table>
+            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>姓名</th><th>教練</th><th>金額</th><th>付款方式</th></tr>
+            {% for e in month_entries %}
+            <tr>
+                <td>{{ e.entry_date }}</td>
+                <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
+                <td>{{ e.item_name }}</td>
+                <td>{{ e.customer_name or "" }}</td>
+                <td>{{ e.coach_name or "" }}</td>
+                <td>${{ (e.amount)|fmt0 }}</td>
+                <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </table>
+        {% else %}
+        <div class="empty">{{ month_label }}尚無收款紀錄</div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .seg { display: flex; gap: 10px; margin-bottom: 20px; }
+    .rev-tab { padding: 5px 22px; font-weight: 800; color: var(--ink); cursor: pointer; background: #fff; border: 2.5px solid var(--ink); border-radius: 999px; box-shadow: 3px 3px 0 var(--ink); }
+    .rev-tab:hover { background: var(--accent-soft); }
+    .rev-tab.active { background: var(--ink); color: #fff; }
+    #panel-month h2 { margin-top: 28px; }
+    #panel-month h2:first-child { margin-top: 0; }
+</style>
+
+<script>
+    function switchTab(tab) {
+        document.getElementById("tab-today").classList.toggle("active", tab === "today");
+        document.getElementById("tab-month").classList.toggle("active", tab === "month");
+        document.getElementById("panel-today").style.display = tab === "today" ? "block" : "none";
+        document.getElementById("panel-month").style.display = tab === "month" ? "block" : "none";
+        document.getElementById("month-pick").style.display = tab === "month" ? "flex" : "none";
+    }
+    {% if initial_tab == "month" %}switchTab("month");{% endif %}
+</script>
+<style>
+    .month-pick { gap: 14px; align-items: center; flex-wrap: wrap; margin: 4px 0 12px; font-size: 14px; }
+    .month-pick a { font-weight: 700; white-space: nowrap; }
+    .panel .month-pick input[type=month] { width: 190px; flex: none; }
+</style>
+{% endblock %}

@@ -1,0 +1,96 @@
+{% extends "admin/base.html" %}
+{% block title %}帳號管理 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">帳號管理</h1>
+<p class="page-hint">
+    只有超級管理者看得到這頁。新增帳號是直接由這裡建立帳密，不是寄邀請連結——請直接把帳密口頭或訊息告知對方。
+</p>
+
+<div class="panel">
+    <h2>新增帳號</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>帳號</label>
+            <input type="text" id="f-username" placeholder="登入用帳號">
+        </div>
+        <div>
+            <label>密碼</label>
+            <input type="text" id="f-password" placeholder="密碼">
+        </div>
+        <div>
+            <label>角色</label>
+            <select id="f-role">
+                {% for role, label in role_labels.items() %}
+                <option value="{{ role }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createAccount()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <h2>帳號清單（共 {{ accounts|length }} 筆）</h2>
+    {% if accounts %}
+    <table>
+        <tr><th>帳號</th><th>角色</th><th>狀態</th><th>操作</th></tr>
+        {% for a in accounts %}
+        <tr id="row-{{ a.id }}">
+            <td>{{ a.username }}</td>
+            <td>{{ role_labels.get(a.role, a.role) }}</td>
+            <td>{% if a.is_active %}<span class="pill ok">啟用中</span>{% else %}<span class="pill off">已停用</span>{% endif %}</td>
+            <td>
+                {% if a.id != current_user.id %}
+                {% if a.is_active %}
+                <button onclick="setActive({{ a.id }}, false)" class="btn-sm danger">停用</button>
+                {% else %}
+                <button onclick="setActive({{ a.id }}, true)" class="btn-sm">啟用</button>
+                {% endif %}
+                {% else %}
+                <span class="pill idle">目前登入</span>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有帳號資料</div>
+    {% endif %}
+</div>
+
+<script>
+    async function createAccount() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const username = document.getElementById("f-username").value.trim();
+        const password = document.getElementById("f-password").value;
+        if (!username || !password) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填帳號與密碼";
+            return;
+        }
+        const payload = { username, password, role: document.getElementById("f-role").value };
+        const res = await fetch("/admin/accounts", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function setActive(accountId, active) {
+        const action = active ? "啟用" : "停用";
+        if (!confirm(`確定要${action}這個帳號嗎？`)) return;
+        const res = await fetch(`/admin/accounts/${accountId}/${active ? "activate" : "deactivate"}`, { method: "POST" });
+        if (res.ok) { location.reload(); } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || `${action}失敗`);
+        }
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,126 @@
+{% extends "admin/base.html" %}
+{% block title %}品項設定 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">品項設定</h1>
+<p class="page-hint">
+    這裡設定的品項會出現在「營收」頁面的下拉快選裡；有填單價的話，選了會自動帶出金額（還是可以手動改）。
+</p>
+
+<div class="panel">
+    <h2>新增品項</h2>
+    <div id="create-msg" class="msg"></div>
+    <div class="form-row">
+        <div>
+            <label>品項分類</label>
+            <select id="f-category">
+                <option value="coaching">教練課</option>
+                <option value="membership">會籍</option>
+                <option value="service">服務</option>
+                <option value="venue_rental">場租</option>
+                <option value="beverage">飲料</option>
+                <option value="custom">自訂項目</option>
+            </select>
+        </div>
+        <div>
+            <label>品項名稱</label>
+            <input type="text" id="f-name" placeholder="例如 1V1PT*12">
+        </div>
+        <div>
+            <label>單價（選填，留空的話選了只會帶名稱）</label>
+            <input type="number" id="f-price" placeholder="金額">
+        </div>
+        <div style="display:flex; align-items:flex-end;">
+            <button class="primary" onclick="createItem()">新增</button>
+        </div>
+    </div>
+</div>
+
+<div class="panel">
+    <div class="panel-head">
+        <h2 style="margin:0;">品項清單（共 <span id="visible-count">{{ items|length }}</span> 筆）</h2>
+        <div style="min-width:180px;">
+            <select id="f-filter-category" onchange="filterByCategory()">
+                <option value="">全部分類</option>
+                {% for cat, label in category_labels.items() %}
+                <option value="{{ cat }}">{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+    {% if items %}
+    <table>
+        <tr><th>分類</th><th>品項名稱</th><th>單價</th><th>操作</th></tr>
+        {% for item in items %}
+        <tr id="row-{{ item.id }}" data-category="{{ item.item_category }}">
+            <td>{{ category_labels.get(item.item_category, item.item_category) }}</td>
+            <td><span id="name-{{ item.id }}">{{ item.item_name }}</span></td>
+            <td><span id="price-{{ item.id }}">{% if item.default_price %}${{ (item.default_price)|fmt0 }}{% else %}未設定{% endif %}</span></td>
+            <td>
+                <button onclick="editItem({{ item.id }}, '{{ item.item_name }}', {{ (item.default_price|dec2) if item.default_price else 'null' }})" class="btn-sm">編輯</button>
+                <button onclick="removeItem({{ item.id }})" class="btn-sm danger">刪除</button>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有品項資料</div>
+    {% endif %}
+</div>
+
+<script>
+    function filterByCategory() {
+        const value = document.getElementById("f-filter-category").value;
+        const rows = document.querySelectorAll("table tr[data-category]");
+        let visible = 0;
+        rows.forEach(row => {
+            const show = !value || row.dataset.category === value;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+        });
+        document.getElementById("visible-count").textContent = visible;
+    }
+
+    async function createItem() {
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+        const name = document.getElementById("f-name").value.trim();
+        if (!name) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填品項名稱";
+            return;
+        }
+        const priceVal = document.getElementById("f-price").value;
+        const payload = {
+            item_category: document.getElementById("f-category").value,
+            item_name: name,
+            default_price: priceVal ? Number(priceVal) : null,
+        };
+        const res = await fetch("/admin/settings/items", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    }
+
+    async function editItem(itemId, currentName, currentPrice) {
+        const newName = prompt("品項名稱", currentName);
+        if (newName === null) return;
+        const newPriceStr = prompt("單價（留空代表不設定固定單價）", currentPrice === null ? "" : currentPrice);
+        if (newPriceStr === null) return;
+        const res = await fetch(`/admin/settings/items/${itemId}`, {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ item_name: newName, default_price: newPriceStr ? Number(newPriceStr) : null }),
+        });
+        if (res.ok) { location.reload(); } else { alert("更新失敗"); }
+    }
+
+    async function removeItem(itemId) {
+        if (!confirm("確定要刪除這個品項嗎？（不會影響已經登記過的營收紀錄）")) return;
+        const res = await fetch(`/admin/settings/items/${itemId}/deactivate`, { method: "POST" });
+        if (res.ok) { location.reload(); } else { alert("刪除失敗"); }
+    }
+</script>
+{% endblock %}

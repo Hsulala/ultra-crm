@@ -1,0 +1,108 @@
+{% extends "admin/base.html" %}
+{% block title %}紀錄課程 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<h1 class="page-title">紀錄課程</h1>
+<p class="page-hint">
+    純紀錄當堂內容，不會扣合約堂數。這個功能手機 LINE 裡的「紀錄課程」也能填，這裡是給電腦操作用的版本。
+</p>
+
+{% if not is_coach_locked %}
+<div class="panel">
+    <div class="form-row" style="margin-bottom:0;">
+        <div>
+            <label>選擇教練</label>
+            <select id="f-coach-select" onchange="switchCoach()">
+                {% for c in coaches %}
+                <option value="{{ c.id }}" {% if c.id == selected_coach_id %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div id="create-msg" class="msg"></div>
+
+{% if active_contracts %}
+{% for c in active_contracts %}
+<div class="panel" data-contract-id="{{ c.contract_id }}">
+    <div class="panel-head" style="margin-bottom:14px;">
+        <h2 style="margin:0;">{{ c.student_names }}<span style="font-weight:400; color:#888; font-size:13px;">　#{{ c.contract_no or c.contract_id }}</span></h2>
+        <span class="badge badge-active">剩 {{ c.remaining_sessions }} 堂</span>
+    </div>
+    <div class="form-row">
+        <div>
+            <label>上課日期</label>
+            <input type="date" class="class-date" value="{{ today if today else '' }}">
+        </div>
+    </div>
+    <label>課程內容</label>
+    <textarea class="content-input" rows="3" placeholder="今天練了什麼、學員狀態如何..."></textarea>
+    <button class="primary" onclick="submitRecord({{ c.contract_id }}, this)">送出紀錄</button>
+</div>
+{% endfor %}
+{% else %}
+<div class="panel"><div class="empty">目前沒有進行中的合約可以記錄</div></div>
+{% endif %}
+
+<div class="panel">
+    <h2>最近紀錄</h2>
+    {% if recent_records %}
+    <table>
+        <tr><th>日期</th><th>學員</th><th>內容</th></tr>
+        {% for r in recent_records %}
+        <tr><td>{{ r.class_date }}</td><td>{{ r.student_names }}</td><td>{{ r.content_summary }}</td></tr>
+        {% endfor %}
+    </table>
+    {% else %}
+    <div class="empty">目前沒有紀錄</div>
+    {% endif %}
+</div>
+
+<script>
+    const SELECTED_COACH_ID = {{ selected_coach_id or "null" }};
+
+    function switchCoach() {
+        const coachId = document.getElementById("f-coach-select").value;
+        location.href = `/admin/class-records/page?coach_id=${coachId}`;
+    }
+
+    async function submitRecord(contractId, btn) {
+        const panel = btn.closest(".panel");
+        const classDate = panel.querySelector(".class-date").value;
+        const content = panel.querySelector(".content-input").value.trim();
+        const msg = document.getElementById("create-msg");
+        msg.style.display = "none";
+
+        if (!classDate || !content) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫日期與課程內容";
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = "送出中...";
+        try {
+            const res = await fetch("/admin/class-records", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    coach_id: SELECTED_COACH_ID,
+                    contract_id: contractId,
+                    class_date: classDate,
+                    content_summary: content,
+                }),
+            });
+            if (res.ok) {
+                msg.className = "msg success"; msg.style.display = "block"; msg.textContent = "已成功記錄課程內容";
+                panel.querySelector(".content-input").value = "";
+            } else {
+                const body = await res.json().catch(() => ({}));
+                msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "送出失敗";
+            }
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "送出紀錄";
+        }
+    }
+</script>
+{% endblock %}

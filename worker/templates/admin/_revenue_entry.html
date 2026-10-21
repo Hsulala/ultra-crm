@@ -1,0 +1,225 @@
+{# 新增收款紀錄表單（營收頁、總覽頁共用）。需要 today、items_by_category_json、payment_method_suggestions。#}
+<div id="re-msg" class="msg"></div>
+<div class="re-chips" id="re-chips"></div>
+<div class="form-row">
+    <div style="flex:0 0 150px; min-width:140px;">
+        <label>日期</label>
+        <input type="date" id="re-date" value="{{ today }}">
+    </div>
+    <div style="flex:3; min-width:240px; position:relative;">
+        <label>品項（打字搜尋，可輸入多個關鍵字）</label>
+        <input type="text" id="re-search" autocomplete="off" placeholder="例如：私 10、皮拉提斯 體驗、蛋白">
+        <div id="re-list" class="re-list" style="display:none;"></div>
+        <div id="re-picked" class="re-picked" style="display:none;"></div>
+        {% if current_user.role in ["manager", "super_admin"] %}
+        <div style="font-size:11px; margin-top:4px;">
+            <a href="/admin/settings/items/page">管理品項清單</a>
+        </div>
+        {% endif %}
+    </div>
+    <div style="flex:1; min-width:110px;">
+        <label>金額</label>
+        <input type="number" id="re-amount" placeholder="金額" inputmode="numeric">
+    </div>
+    <div style="flex:1; min-width:130px;">
+        <label>付款方式</label>
+        <input type="text" id="re-payment" list="re-payment-options" placeholder="現金 / 匯款 / 信用卡">
+        <datalist id="re-payment-options">
+            {% for pm in payment_method_suggestions %}<option value="{{ pm }}">{% endfor %}
+        </datalist>
+        <div class="re-quick" id="re-quick-pay"></div>
+    </div>
+    <div style="flex:0 0 130px; min-width:110px; display:none;" id="re-last5-wrap">
+        <label>匯款末五碼</label>
+        <input type="text" id="re-last5" inputmode="numeric" maxlength="5" placeholder="5 位數字">
+    </div>
+    <div style="display:flex; align-items:flex-end; flex:0 0 auto;">
+        <button class="primary" id="re-submit">新增</button>
+    </div>
+</div>
+
+<style>
+    .re-chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px; }
+    .re-chip { font-size:13px; font-weight:700; padding:2px 14px; border:2px solid var(--ink); border-radius:999px; background:#fff; color:var(--ink); cursor:pointer; font-family:inherit; box-shadow:2px 2px 0 var(--ink); }
+    .re-chip:hover { background:var(--accent-soft); }
+    .re-chip.on { background:var(--ink); color:#fff; }
+    .re-list { position:absolute; left:0; right:0; top:100%; z-index:20; background:#fff; border:2px solid var(--ink); border-radius:12px; margin-top:4px; max-height:320px; overflow-y:auto; box-shadow:4px 4px 0 var(--ink); }
+    .re-opt { display:flex; justify-content:space-between; gap:10px; padding:9px 12px; font-size:14px; cursor:pointer; border-bottom:1.5px solid var(--rule); }
+    .re-opt.act, .re-opt:hover { background:var(--accent-soft); }
+    .re-opt .cat { font-size:12px; font-weight:700; color:#b85a12; background:var(--accent-soft); border:1.5px solid var(--ink); border-radius:999px; padding:0 8px; margin-right:8px; white-space:nowrap; }
+    .re-opt .price { color:var(--muted); white-space:nowrap; }
+    .re-opt mark { background:#ffd9b8; color:inherit; padding:0; }
+    .re-empty { padding:10px 12px; font-size:13px; color:var(--muted); }
+    .re-picked { margin-top:6px; font-size:14px; background:var(--accent-soft); border:2px solid var(--ink); border-radius:12px; padding:6px 12px; }
+    .re-picked b { color:var(--ink); }
+    .re-picked a { color:var(--danger); cursor:pointer; margin-left:10px; font-size:13px; font-weight:700; }
+    .re-quick { display:flex; gap:6px; margin-top:6px; flex-wrap:wrap; }
+    .re-quick button { font-size:12px; font-weight:700; padding:0 10px; border:2px solid var(--ink); border-radius:999px; background:#fff; cursor:pointer; font-family:inherit; color:var(--ink); }
+    .re-quick button:hover { background:var(--accent-soft); }
+</style>
+
+<script>
+(function () {
+    const ITEMS = {{ items_by_category_json | safe }};
+    const CATS = [["coaching", "教練課"], ["membership", "會籍"], ["service", "服務"], ["venue_rental", "場租"], ["beverage", "飲料"]];
+    const CAT_LABEL = Object.fromEntries(CATS.concat([["custom", "自訂項目"]]));
+    const $ = (id) => document.getElementById(id);
+    const norm = (s) => String(s).toLowerCase().replace(/\s+/g, "");
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // 攤平成一張清單：同一品項的分類、名稱、價格一次帶出
+    const ALL = [];
+    CATS.forEach(([cat]) => (ITEMS[cat] || []).forEach((it) => ALL.push({ cat, name: it.name, price: it.price })));
+
+    let filterCat = "";   // "" = 全部分類
+    let picked = null;    // { cat, name, price }
+    let shown = [];
+    let active = -1;
+
+    // 分類篩選
+    const chipBox = $("re-chips");
+    [["", "全部"]].concat(CATS).forEach(([cat, label]) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "re-chip" + (cat === filterCat ? " on" : ""); b.textContent = label;
+        b.onclick = () => {
+            filterCat = cat;
+            chipBox.querySelectorAll(".re-chip").forEach((x) => x.classList.toggle("on", x === b));
+            render(); $("re-search").focus();
+        };
+        chipBox.appendChild(b);
+    });
+
+    // 付款方式快速鈕
+    ["現金", "匯款", "信用卡"].forEach((pm) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.textContent = pm;
+        b.onclick = () => { $("re-payment").value = pm; syncLast5(); };
+        $("re-quick-pay").appendChild(b);
+    });
+
+    // 選匯款／轉帳時才出現末五碼欄位
+    function syncLast5() {
+        const on = /匯款|轉帳/.test($("re-payment").value);
+        $("re-last5-wrap").style.display = on ? "block" : "none";
+        if (!on) $("re-last5").value = "";
+    }
+    $("re-payment").addEventListener("input", syncLast5);
+    $("re-payment").addEventListener("change", syncLast5);
+    $("re-last5").addEventListener("input", (e) => { e.target.value = e.target.value.replace(/\D/g, "").slice(0, 5); });
+
+    function highlight(name, tokens) {
+        let out = esc(name);
+        tokens.forEach((t) => {
+            if (!t) return;
+            const re = new RegExp("(" + esc(t).replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "ig");
+            out = out.replace(re, "<mark>$1</mark>");
+        });
+        return out;
+    }
+
+    function search() {
+        const raw = $("re-search").value.trim();
+        const tokens = raw.split(/\s+/).filter(Boolean).map((t) => t.toLowerCase());
+        let rows = ALL.filter((it) => !filterCat || it.cat === filterCat);
+        if (tokens.length) {
+            rows = rows.filter((it) => {
+                const hay = norm(it.name + CAT_LABEL[it.cat]);
+                return tokens.every((t) => hay.includes(norm(t)));
+            });
+            const first = norm(tokens[0]);
+            rows.sort((a, b) => (norm(b.name).startsWith(first) ? 1 : 0) - (norm(a.name).startsWith(first) ? 1 : 0));
+        }
+        return { raw, tokens, rows };
+    }
+
+    function render() {
+        const { raw, tokens, rows } = search();
+        const list = $("re-list");
+        shown = rows.slice(0, 80);
+        // 打了字但沒有完全相同的品項時，提供「自訂品項」選項
+        if (raw && !rows.some((r) => norm(r.name) === norm(raw))) {
+            shown.push({ cat: "custom", name: raw, price: null, custom: true });
+        }
+        if (active >= shown.length) active = shown.length - 1;
+        if (active < 0 && shown.length) active = 0;
+        list.innerHTML = shown.length
+            ? shown.map((it, i) =>
+                `<div class="re-opt${i === active ? " act" : ""}" data-i="${i}">
+                    <span>${it.custom ? "＋ 自訂品項：" + esc(it.name) : '<span class="cat">' + CAT_LABEL[it.cat] + "</span>" + highlight(it.name, tokens)}</span>
+                    <span class="price">${it.price != null ? "$" + Number(it.price).toLocaleString() : ""}</span>
+                </div>`).join("")
+            : '<div class="re-empty">沒有符合的品項</div>';
+        list.style.display = "block";
+        list.querySelectorAll(".re-opt").forEach((el) => {
+            el.onmousedown = (e) => { e.preventDefault(); choose(shown[Number(el.dataset.i)]); };
+        });
+    }
+
+    function choose(it) {
+        if (!it) return;
+        picked = { cat: it.cat, name: it.name, price: it.price };
+        $("re-list").style.display = "none";
+        $("re-search").value = "";
+        const box = $("re-picked");
+        box.innerHTML = `已選：<b>${esc(it.name)}</b>（${CAT_LABEL[it.cat]}）<a id="re-clear">重選</a>`;
+        box.style.display = "block";
+        $("re-clear").onclick = clearPick;
+        if (it.price != null) $("re-amount").value = it.price;
+        $("re-amount").focus();
+    }
+
+    function clearPick() {
+        picked = null;
+        $("re-picked").style.display = "none";
+        $("re-search").focus();
+        render();
+    }
+
+    const input = $("re-search");
+    input.addEventListener("focus", () => { active = -1; render(); });
+    input.addEventListener("input", () => { active = -1; render(); });
+    input.addEventListener("blur", () => { setTimeout(() => { $("re-list").style.display = "none"; }, 120); });
+    input.addEventListener("keydown", (e) => {
+        if (e.key === "ArrowDown") { e.preventDefault(); active = Math.min(active + 1, shown.length - 1); render(); scrollActive(); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); active = Math.max(active - 1, 0); render(); scrollActive(); }
+        else if (e.key === "Enter") { e.preventDefault(); if (shown[active]) choose(shown[active]); }
+        else if (e.key === "Escape") { $("re-list").style.display = "none"; }
+    });
+    function scrollActive() {
+        const el = $("re-list").querySelector(".re-opt.act");
+        if (el) el.scrollIntoView({ block: "nearest" });
+    }
+
+    $("re-submit").addEventListener("click", async () => {
+        const msg = $("re-msg");
+        msg.style.display = "none";
+        const payload = {
+            entry_date: $("re-date").value,
+            item_category: picked ? picked.cat : "custom",
+            item_name: picked ? picked.name : "",
+            amount: Number($("re-amount").value || 0),
+            payment_method: $("re-payment").value.trim(),
+            remittance_last5: $("re-last5").value.trim() || null,
+        };
+        if (payload.remittance_last5 && payload.remittance_last5.length !== 5) {
+            msg.className = "msg error"; msg.style.display = "block";
+            msg.textContent = "匯款末五碼必須是 5 位數字，沒有的話請留空";
+            return;
+        }
+        if (!payload.item_name || !payload.payment_method || !payload.amount) {
+            msg.className = "msg error"; msg.style.display = "block";
+            msg.textContent = "請選擇品項，並填寫金額與付款方式";
+            return;
+        }
+        const res = await fetch("/admin/revenue", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
+        }
+    });
+})();
+</script>

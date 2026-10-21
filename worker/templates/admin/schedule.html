@@ -1,0 +1,178 @@
+{% extends "admin/base.html" %}
+{% block title %}排班 - Ultra Fitness 後台{% endblock %}
+{% block content %}
+<div class="panel-head" style="margin-bottom:22px;">
+    <h1 class="page-title" style="margin:0;">排班（{{ year }} 年 {{ month }} 月）</h1>
+    <div class="btn-row">
+        <a href="/admin/schedule/page?year={{ prev_year }}&month={{ prev_month }}" class="btn-ghost">‹ 上個月</a>
+        <a href="/admin/schedule/page" class="btn-ghost">本月</a>
+        <a href="/admin/schedule/page?year={{ next_year }}&month={{ next_month }}" class="btn-ghost">下個月 ›</a>
+    </div>
+</div>
+
+<div class="panel">
+    <p class="hint" style="font-size:13px; margin:0 0 14px;">點一天的格子就可以編輯當天早/中/晚三班的排班，一個班可以同時排多人（例如一位教練＋一位櫃檯）。</p>
+    <button onclick="publishMonth()" class="btn-outline">發布本月班表</button>
+</div>
+
+<div class="panel">
+    <table class="cal-table">
+        <tr>
+            <th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th>
+        </tr>
+        {% for week in weeks %}
+        <tr>
+            {% for day in week %}
+            <td class="cal-cell {% if not day.in_month %}out-of-month{% endif %} {% if day.is_today %}today{% endif %}" onclick="openDayEditor('{{ day.date }}')">
+                <div class="cal-date">{{ day.day }}</div>
+                {% for e in day.entries %}
+                <div class="cal-entry {% if e.status == 'published' %}published{% else %}draft{% endif %}">
+                    <b>{{ e.shift_short }}</b> {{ e.assignee }}
+                </div>
+                {% endfor %}
+            </td>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+    </table>
+    <p style="font-size:12px; color:#888; margin-top:10px;">
+        <span class="legend-dot draft"></span> 草稿
+        <span class="legend-dot published"></span> 已發布
+    </p>
+</div>
+
+<div id="day-modal" style="display:none; position:fixed; inset:0; background:rgba(17,17,17,0.5); z-index:120; align-items:center; justify-content:center;">
+    <div class="modal-card">
+        <div class="panel-head">
+            <h2 style="margin:0; font-size:17px;" id="day-modal-title"></h2>
+            <button onclick="closeDayEditor()" class="modal-close" aria-label="關閉">&times;</button>
+        </div>
+        <div id="day-modal-body"></div>
+    </div>
+</div>
+
+<style>
+    h1.page-title::after { content: none; }
+    table.cal-table { table-layout: fixed; border-collapse: separate; border-spacing: 6px; margin: -6px; width: calc(100% + 12px); }
+    table.cal-table th { text-align: center; border: 0; padding: 4px 0 6px; font-size: 14px; background: transparent; }
+    table.cal-table td.cal-cell { vertical-align: top; height: 100px; padding: 7px 8px; background: var(--soft); border: 1.5px solid var(--rule); border-radius: 14px; cursor: pointer; }
+    table.cal-table td.cal-cell:hover { background: var(--accent-soft); }
+    td.cal-cell.out-of-month { background: transparent; opacity: .45; }
+    td.cal-cell.today { background: var(--accent-soft); border: 3px solid var(--ink); box-shadow: 3px 3px 0 var(--ink); padding: 5px 6px; }
+    .cal-date { font: italic 800 17px var(--display); margin-bottom: 4px; }
+    td.cal-cell.today .cal-date { color: var(--accent); }
+    .cal-entry { font-size: 12px; font-weight: 700; padding: 1px 9px; margin-bottom: 3px; border-radius: 999px; border: 2px solid var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cal-entry.draft { background: #fff; color: var(--muted); border-color: var(--muted); border-style: dashed; }
+    .cal-entry.published { background: var(--accent); color: #fff; }
+    .legend-dot { display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin: 0 5px 0 14px; vertical-align: middle; border: 2px solid var(--ink); }
+    .legend-dot.draft { background: #fff; border-style: dashed; border-color: var(--muted); }
+    .legend-dot.published { background: var(--accent); }
+    .modal-card { background: #fff; width: 480px; max-width: 92vw; max-height: 86vh; overflow-y: auto; padding: 24px; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 8px 8px 0 var(--ink); }
+    .modal-close { border: 2.5px solid var(--ink); background: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 20px; font-weight: 700; line-height: 1; cursor: pointer; box-shadow: 2px 2px 0 var(--ink); }
+    .modal-close:hover { background: var(--accent-soft); }
+</style>
+
+<script>
+    const SCHEDULE_BY_DAY = {{ schedule_by_day_json | safe }};
+    const COACHES = {{ coaches_json | safe }};
+    const STAFF = {{ staff_json | safe }};
+    const SHIFTS = [
+        { value: "morning", label: "早班 09:00-13:00" },
+        { value: "afternoon", label: "中班 13:00-18:00" },
+        { value: "evening", label: "晚班 18:00-22:00" },
+    ];
+    let currentDay = null;
+
+    function openDayEditor(dayIso) {
+        currentDay = dayIso;
+        document.getElementById("day-modal-title").textContent = dayIso;
+        renderDayEditor();
+        document.getElementById("day-modal").style.display = "flex";
+    }
+
+    function closeDayEditor() {
+        document.getElementById("day-modal").style.display = "none";
+        currentDay = null;
+    }
+
+    function renderDayEditor() {
+        const entries = SCHEDULE_BY_DAY[currentDay] || [];
+        const body = document.getElementById("day-modal-body");
+        body.innerHTML = SHIFTS.map(s => {
+            const shiftEntries = entries.filter(e => e.shift === s.value);
+            const chips = shiftEntries.map(e => `
+                <div class="cal-entry ${e.status === 'published' ? 'published' : 'draft'}" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                    <span>${e.assignee}</span>
+                    <span style="cursor:pointer; font-weight:700; padding:0 4px;" onclick="removeEntry(${e.id})">×</span>
+                </div>
+            `).join("") || '<div style="color:var(--muted); font-size:12px; margin-bottom:6px; padding-left:4px;">尚未排班</div>';
+            return `
+                <div style="margin-bottom:16px;">
+                    <label style="display:block; font-weight:900; font-size:14px; margin-bottom:8px;">${s.label}</label>
+                    ${chips}
+                    <div class="form-row" style="margin-bottom:0;">
+                        <div>
+                            <select id="add-coach-${s.value}">
+                                <option value="">＋ 新增教練...</option>
+                                ${COACHES.map(c => `<option value="${c.id}">${c.name}</option>`).join("")}
+                            </select>
+                        </div>
+                        <div>
+                            <select id="add-staff-${s.value}">
+                                <option value="">＋ 新增櫃檯/人員...</option>
+                                ${STAFF.map(a => `<option value="${a.id}">${a.name}</option>`).join("")}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join("");
+
+        SHIFTS.forEach(s => {
+            document.getElementById(`add-coach-${s.value}`).onchange = (ev) => {
+                if (ev.target.value) addEntry(s.value, { coach_id: Number(ev.target.value) });
+            };
+            document.getElementById(`add-staff-${s.value}`).onchange = (ev) => {
+                if (ev.target.value) addEntry(s.value, { admin_user_id: Number(ev.target.value) });
+            };
+        });
+    }
+
+    async function addEntry(shift, who) {
+        const payload = { work_date: currentDay, shift, coach_id: null, admin_user_id: null, ...who };
+        const res = await fetch("/admin/schedule", {
+            method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+        });
+        if (res.ok) {
+            location.reload();
+        } else {
+            const body = await res.json().catch(() => ({}));
+            alert(body.detail || "新增失敗");
+        }
+    }
+
+    async function removeEntry(entryId) {
+        if (!confirm("確定要移除這筆排班嗎？")) return;
+        const res = await fetch(`/admin/schedule/${entryId}/remove`, { method: "POST" });
+        if (res.ok) {
+            location.reload();
+        } else {
+            alert("移除失敗");
+        }
+    }
+
+    async function publishMonth() {
+        const res = await fetch("/admin/schedule/publish", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ year: {{ year }}, month: {{ month }} }),
+        });
+        if (res.ok) {
+            const data = await res.json();
+            alert(`已發布 ${data.published_count} 筆班表`);
+            location.reload();
+        } else {
+            alert("發布失敗");
+        }
+    }
+</script>
+{% endblock %}
