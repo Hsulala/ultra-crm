@@ -22,6 +22,8 @@ app.use('*', async (c, next) => {
 });
 
 app.get('/healthz', (c) => c.json({ status: 'ok' }));
+// 首頁直接進後台（原本 Railway 版首頁也是 404，正式網址打開就該看到登入頁）
+app.get('/', (c) => c.redirect(`${new URL(c.req.url).origin}/admin/`, 302));
 // FastAPI 的 redirect_slashes：/admin → /admin/
 app.get('/admin', (c) => { const u = new URL(c.req.url); return c.redirect(`${u.origin}/admin/${u.search}`, 307); });
 app.get('/admin/', dashboard);
