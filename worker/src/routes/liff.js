@@ -4,7 +4,7 @@ import { currentMember, currentVenueCoach, lineUserId, requireMemberRole } from 
 import { fail, parseBody, queryParam, readJson } from '../lib/http.js';
 import { verifySignature } from '../lib/line.js';
 import { bookingOut, bookingsForCoach, createBooking, createVenueBooking, venueBookingOut } from '../services/bookings.js';
-import { activeContractsForCoach, classRecordsForMember, contractsForMember, createClassRecord, membersForContract } from '../services/contracts.js';
+import { activeContractsForCoach, classRecordsForMember, contractsForMember, createClassRecord, membersForContract, membersForContracts } from '../services/contracts.js';
 import { expireStaleCodes, publishedSchedule, redeemBindingCode, scheduleOut, submitUnavailability } from '../services/people.js';
 
 export const liff = new Hono();
@@ -50,11 +50,25 @@ liff.get('/class-records/mine', async (c) => {
 liff.get('/class-records/active-contracts', async (c) => {
   const coach = await requireMemberRole(c, 'coach');
   const db = c.get('db');
-  const out = [];
-  for (const x of await activeContractsForCoach(db, coach.id)) {
-    out.push({ contract_id: x.id, contract_no: x.contract_no, student_names: (await membersForContract(db, x.id)).map((m) => m.name), remaining_sessions: x.total_sessions - x.used_sessions });
-  }
-  return c.json(out);
+  // 只列還有剩餘堂數的合約；學員一次查回（匯入的舊資料一位教練有數百份合約，逐份查會超過 Cloudflare 每次請求的查詢上限）
+  const rows = (await activeContractsForCoach(db, coach.id)).filter((x) => x.total_sessions > x.used_sessions);
+  const members = await membersForContracts(db, rows.map((x) => x.id));
+  rows.sort((a, b) => (b.purchase_date || '').localeCompare(a.purchase_date || '') || b.id - a.id);
+  return c.json(rows.map((x) => ({
+    contract_id: x.id, contract_no: x.contract_no, course_type: x.course_type, purchase_date: x.purchase_date,
+    student_names: (members.get(x.id) ?? []).map((m) => m.name), remaining_sessions: x.total_sessions - x.used_sessions,
+  })));
+});
+
+// 目前登入的 LINE 帳號綁到誰（綁定頁、教練預約頁用）
+liff.get('/me', async (c) => {
+  const lineId = await lineUserId(c);
+  const db = c.get('db');
+  const m = await db.first('SELECT id, name, role FROM members WHERE line_user_id = ? AND is_active = 1 LIMIT 1', lineId);
+  if (m) return c.json({ bound: true, kind: 'member', id: m.id, name: m.name, role: m.role });
+  const v = await db.first('SELECT id, name FROM venue_rental_coaches WHERE line_user_id = ? AND is_active = 1 LIMIT 1', lineId);
+  if (v) return c.json({ bound: true, kind: 'venue_coach', id: v.id, name: v.name, role: 'venue_coach' });
+  return c.json({ bound: false });
 });
 
 liff.post('/class-records', async (c) => {

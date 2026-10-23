@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ultra Fitness</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<!-- LIFF 入口：圖文選單用 https://liff.line.me/<ID>/<頁面>/ 開啟時，LINE 會先載入這頁，liff.init 會自動轉到該頁。
+     直接開這頁（沒有指定頁面）時，依綁定身分列出可用功能。 -->
+<div class="page">
+    <div class="header">
+        <span class="eyebrow">ULTRA FITNESS</span>
+        <h1>會員服務</h1>
+        <p id="who">載入中...</p>
+    </div>
+    <div id="content"></div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-student-1";
+    const PAGES = {
+        student: [["我的課程", "my-contracts/"], ["上課記錄", "class-records/"]],
+        coach: [["紀錄課程", "record/"], ["教練預約", "booking/"]],
+        venue_coach: [],
+    };
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            if (LIFF_ID) {
+                await initLiff();
+                // 帶有 liff.state 時 SDK 會自己轉頁，這裡不用再畫
+                if (new URLSearchParams(location.search).has("liff.state")) return;
+            }
+            const me = await apiFetch("/api/liff/me", DEV_LINE_USER_ID);
+            if (!me) return;
+            if (!me.bound) {
+                document.getElementById("who").textContent = "尚未綁定會員或教練身分";
+                content.innerHTML = `<a class="card menu-link" href="bind/">會員／教練綁定<span>→</span></a>`;
+                return;
+            }
+            const roleName = { student: "學員", coach: "教練", venue_coach: "場租教練" }[me.role] || "";
+            document.getElementById("who").textContent = `${me.name}（${roleName}）`;
+            const links = PAGES[me.role] || [];
+            content.innerHTML = links.length
+                ? links.map(([label, href]) => `<a class="card menu-link" href="${href}">${label}<span>→</span></a>`).join("")
+                : `<div class="empty-state"><div class="mark">◆</div>目前沒有可使用的功能</div>`;
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

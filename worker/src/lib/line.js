@@ -9,7 +9,8 @@ async function call(env, method, path, body) {
   const response = await fetch(`${LINE_API_BASE}${path}`, {
     method,
     headers: { authorization: `Bearer ${env.LINE_CHANNEL_ACCESS_TOKEN}`, ...(body ? { 'content-type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
+    // 沒有內容的 POST（例如綁圖文選單）也要送空字串，否則沒有 Content-Length，LINE 會回 411
+    body: body ? JSON.stringify(body) : method === 'POST' ? '' : undefined,
   });
   if (response.status !== 200) console.error(`LINE ${method} ${path} 失敗：${await response.text()}`);
 }

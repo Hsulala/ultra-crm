@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>教練預約</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <span class="eyebrow">BOOKING</span>
+        <h1>教練預約</h1>
+        <p>幫名下學員預約上課時段</p>
+    </div>
+
+    <div id="message"></div>
+    <div id="content"><div class="loading">載入中...</div></div>
+    <div id="upcoming"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-coach-dk";
+    const AREA_NAMES = { strength: "重訓", pilates: "皮拉提斯" };
+    // 營業時段：07:00～22:00，每小時一個時段
+    const TIMES = Array.from({ length: 16 }, (_, i) => `${String(7 + i).padStart(2, "0")}:00`);
+    let me = null;
+    let contracts = [];
+
+    function showMessage(html) { document.getElementById("message").innerHTML = html; }
+    function today() {
+        const d = new Date(Date.now() + 8 * 3600 * 1000); // 台北日期
+        return d.toISOString().slice(0, 10);
+    }
+
+    function renderForm() {
+        const options = contracts.map((c) =>
+            `<option value="${c.contract_id}">${c.student_names.join("、") || "（未填學員）"}｜${AREA_NAMES[c.course_type] || c.course_type}｜剩 ${c.remaining_sessions} 堂｜#${c.contract_no}</option>`).join("");
+        document.getElementById("content").innerHTML = `
+        <div class="card">
+            <label for="contract">學員合約</label>
+            <select id="contract"><option value="">-- 請選擇學員 --</option>${options}</select>
+            <label for="date">日期</label>
+            <input type="date" id="date" value="${today()}" min="${today()}">
+            <label for="time">時段</label>
+            <select id="time">${TIMES.map((t) => `<option value="${t}">${t}</option>`).join("")}</select>
+            <button class="primary" id="submit">送出預約</button>
+        </div>`;
+        document.getElementById("submit").addEventListener("click", submit);
+    }
+
+    async function submit() {
+        const btn = document.getElementById("submit");
+        const contractId = parseInt(document.getElementById("contract").value, 10);
+        const c = contracts.find((x) => x.contract_id === contractId);
+        if (!c) { showMessage(`<div class="error-box">請先選擇學員</div>`); return; }
+        const body = { coach_id: me.id, contract_id: contractId, slot_date: document.getElementById("date").value, slot_start_time: document.getElementById("time").value, area: c.course_type };
+        btn.disabled = true; btn.textContent = "送出中...";
+        try {
+            const r = await apiFetch("/api/liff/bookings", DEV_LINE_USER_ID, { method: "POST", body: JSON.stringify(body) });
+            if (!r) return;
+            showMessage(`<div class="success-toast">◆ 已預約：${c.student_names.join("、")}　${r.slot_date} ${r.slot_start_time.slice(0, 5)}</div>`);
+            loadUpcoming();
+        } catch (err) {
+            showMessage(`<div class="error-box">預約失敗：${err.message}</div>`);
+        } finally {
+            btn.disabled = false; btn.textContent = "送出預約";
+        }
+    }
+
+    async function loadUpcoming() {
+        const box = document.getElementById("upcoming");
+        try {
+            const list = (await apiFetch("/api/liff/bookings/mine", DEV_LINE_USER_ID)) || [];
+            const names = new Map(contracts.map((c) => [c.contract_id, c.student_names.join("、")]));
+            const upcoming = list.filter((b) => b.slot_date >= today());
+            box.innerHTML = `<div class="section-title">已排的預約</div>` + (upcoming.length
+                ? `<div class="card">${upcoming.map((b) => `<div class="booking-row"><span>${names.get(b.contract_id) || "合約 #" + b.contract_id}｜${AREA_NAMES[b.area] || b.area}</span><b>${b.slot_date.slice(5)} ${b.slot_start_time.slice(0, 5)}</b></div>`).join("")}</div>`
+                : `<div class="empty-state"><div class="mark">◆</div>目前沒有預約</div>`);
+        } catch (err) {
+            box.innerHTML = `<div class="error-box">預約清單載入失敗：${err.message}</div>`;
+        }
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            me = await apiFetch("/api/liff/me", DEV_LINE_USER_ID);
+            if (!me) return;
+            if (!me.bound || me.role !== "coach") {
+                content.innerHTML = `<div class="error-box">這個功能限店內教練使用，請先完成教練綁定</div>`;
+                return;
+            }
+            contracts = await apiFetch("/api/liff/class-records/active-contracts", DEV_LINE_USER_ID);
+            if (!contracts) return;
+            if (!contracts.length) {
+                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有還有剩餘堂數的合約</div>`;
+                return;
+            }
+            renderForm();
+            loadUpcoming();
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

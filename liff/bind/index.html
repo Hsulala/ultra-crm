@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會員綁定</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <span class="eyebrow">MEMBER</span>
+        <h1>會員／教練綁定</h1>
+        <p>輸入店家給您的綁定碼，完成後選單會換成您的專屬功能</p>
+    </div>
+
+    <div id="message"></div>
+    <div id="content"><div class="loading">載入中...</div></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-unbound";
+    const ROLE_NAMES = { student: "學員", coach: "教練", venue_coach: "場租教練" };
+
+    function showMessage(html) { document.getElementById("message").innerHTML = html; }
+
+    function renderBound(me) {
+        document.getElementById("content").innerHTML = `
+        <div class="card">
+            <div class="card-title-row">
+                <div class="card-title">${me.name}</div>
+                <span class="badge badge-active">${ROLE_NAMES[me.role] || "已綁定"}</span>
+            </div>
+            <div class="meta-row"><span>這個 LINE 帳號已完成綁定</span></div>
+        </div>`;
+    }
+
+    function renderForm() {
+        document.getElementById("content").innerHTML = `
+        <div class="card">
+            <label for="code">綁定碼</label>
+            <input type="text" id="code" class="code-input" autocomplete="off" autocapitalize="characters" placeholder="請輸入綁定碼">
+            <p class="hint">綁定碼請向櫃台索取，有效期限內只能使用一次</p>
+            <button class="primary" id="submit">確認綁定</button>
+        </div>`;
+        document.getElementById("submit").addEventListener("click", submit);
+    }
+
+    async function submit() {
+        const btn = document.getElementById("submit");
+        const code = document.getElementById("code").value.trim().toUpperCase();
+        if (!code) { showMessage(`<div class="error-box">請先輸入綁定碼</div>`); return; }
+        btn.disabled = true; btn.textContent = "綁定中...";
+        try {
+            const r = await apiFetch("/api/liff/binding/redeem", DEV_LINE_USER_ID, { method: "POST", body: JSON.stringify({ code }) });
+            if (!r) return;
+            showMessage(`<div class="success-toast">◆ 綁定成功：${r.name}（${ROLE_NAMES[r.role] || r.role}）</div>`);
+            renderBound({ name: r.name, role: r.role });
+            if (LIFF_ID && liff.isInClient()) setTimeout(() => liff.closeWindow(), 2500);
+        } catch (err) {
+            showMessage(`<div class="error-box">綁定失敗：${err.message}</div>`);
+            btn.disabled = false; btn.textContent = "確認綁定";
+        }
+    }
+
+    async function main() {
+        try {
+            const me = await apiFetch("/api/liff/me", DEV_LINE_USER_ID);
+            if (!me) return;
+            if (me.bound) renderBound(me); else renderForm();
+        } catch (err) {
+            document.getElementById("content").innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

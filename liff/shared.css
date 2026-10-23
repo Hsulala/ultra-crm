@@ -57,3 +57,14 @@ button.primary:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var
 button.primary:disabled { background: #bdbab6; box-shadow: none; cursor: not-allowed; }
 
 .success-toast { background: var(--ok-bg); color: var(--ok); border: 2px solid var(--ink); border-radius: 12px; padding: 10px 14px; font-size: 14px; font-weight: 600; margin-bottom: 12px; }
+
+/* 綁定、教練預約、入口頁 */
+input[type=date] { width: 100%; padding: 10px 14px; border: 2px solid var(--ink); border-radius: 10px; font: inherit; font-size: 15px; background: #fff; color: var(--ink); margin-bottom: 14px; }
+.code-input { font-size: 22px; font-weight: 800; letter-spacing: .12em; text-align: center; text-transform: uppercase; }
+.hint { font-size: 13px; color: var(--muted); margin: -6px 0 14px; }
+.menu-link { display: flex; justify-content: space-between; align-items: center; text-decoration: none; color: var(--ink); font-weight: 800; font-size: 17px; }
+.menu-link span { color: var(--accent); font-weight: 900; }
+.section-title { font-size: 15px; font-weight: 900; margin: 22px 4px 10px; }
+.booking-row { display: flex; justify-content: space-between; align-items: center; font-size: 14px; padding: 8px 0; border-top: 1px dashed var(--rule); }
+.booking-row:first-child { border-top: 0; }
+.booking-row b { font: italic 800 18px "Barlow Condensed", sans-serif; color: var(--accent); }
