@@ -149,3 +149,55 @@ test('小工具：金額顯示、時間格式、月曆', () => {
   assert.equal(weeks[0][0], '2026-09-28'); // 週一開頭
   assert.equal(weeks.at(-1)[6], '2026-11-01');
 });
+
+test('會籍營收自動延長／新建會員；體驗課佔時段與名額並記營收；刪除營收與會員', async () => {
+  const { call, sql } = setup();
+  await call('POST', '/admin/login', { form: { username: 'owner', password: 'legacy-pass-1' } });
+  const rev = (json) => call('POST', '/admin/revenue', { json: { entry_date: '2026-10-23', item_category: 'membership', payment_method: '現金', ...json } });
+
+  // 既有會員：單月 → 10/23～11/22；還沒到期再買半年 → 接在 11/23 之後
+  let r = await rev({ item_name: '單月會籍', amount: 1500, customer_name: '甲' });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.data.membership.start, r.data.membership.until, r.data.membership.created], ['2026-10-23', '2026-11-22', false]);
+  r = await rev({ item_name: '半年會籍', amount: 4800, customer_name: '甲' });
+  assert.deepEqual([r.data.membership.start, r.data.membership.until], ['2026-10-23', '2027-05-22']);
+  // 沒有這個人 → 自動建立會員、自動編號
+  r = await rev({ item_name: '年繳會籍', amount: 7200, customer_name: '新朋友' });
+  assert.equal(r.data.membership.created, true);
+  assert.equal(r.data.membership.until, '2027-10-22');
+  assert.match(r.data.membership.member_no, /^UF\d{4}$/);
+  // 週期會籍沒填姓名 → 擋下；單次會籍不用
+  assert.equal((await rev({ item_name: '單月會籍', amount: 1500 })).status, 400);
+  assert.equal((await rev({ item_name: '單次會籍', amount: 250 })).status, 200);
+  // 同名兩人 → 要求帶會員編號
+  sql.exec("INSERT INTO members (member_no, name, role) VALUES ('UF0100', '甲', 'student')");
+  assert.equal((await rev({ item_name: '單月會籍', amount: 1500, customer_name: '甲' })).status, 400);
+  assert.equal((await rev({ item_name: '單月會籍', amount: 1500, customer_name: '甲（UF0100）' })).status, 200);
+
+  // 體驗課：佔教練時段、記一筆營收；同時段再約合約課被擋；取消會刪營收
+  const t = await call('POST', '/admin/trial-bookings', { json: { coach_id: 1, area: 'strength', slot_date: '2026-10-24', slot_start_time: '10:00', customer_name: '體驗者', payment_method: '現金' } });
+  assert.equal(t.status, 200, t.text);
+  assert.equal(sql.prepare("SELECT amount FROM revenue_details WHERE item_name = 'PT體驗' AND customer_name = '體驗者'").get().amount, 500);
+  const k = (await call('POST', '/admin/contracts', { json: { coach_id: 1, member_ids: [2], course_type: 'strength', purchase_date: '2026-10-01', unit_price: 1000, total_sessions: 10 } })).data.id;
+  assert.equal((await call('POST', '/admin/bookings', { json: { coach_id: 1, contract_id: k, slot_date: '2026-10-24', slot_start_time: '10:00' } })).status, 400);
+  assert.equal((await call('POST', `/admin/trial-bookings/${t.data.id}/cancel`)).data.revenue_removed, true);
+  assert.equal(sql.prepare("SELECT count(*) n FROM revenue_details WHERE customer_name = '體驗者'").get().n, 0);
+  // 皮拉提斯體驗佔 1 個名額：4 個體驗後第 5 個被擋
+  sql.exec("INSERT INTO members (member_no, name, role) VALUES ('C2', 'YOKO', 'coach'), ('C3', 'DK', 'coach'), ('C4', 'MUMU', 'coach'), ('C5', 'NINA', 'coach')");
+  const coachIds = sql.prepare("SELECT id FROM members WHERE role = 'coach' ORDER BY id").all().map((x) => x.id);
+  for (const [i, cid] of coachIds.entries()) {
+    const res = await call('POST', '/admin/trial-bookings', { json: { coach_id: cid, area: 'pilates', slot_date: '2026-10-25', slot_start_time: '09:00', customer_name: `P${i}` } });
+    assert.equal(res.status, i < 4 ? 200 : 400, `第 ${i + 1} 位`);
+  }
+
+  // 刪除營收；刪除會員：有紀錄 → 停用，沒紀錄 → 刪除
+  const one = sql.prepare("SELECT id FROM revenue_details WHERE item_name = '單次會籍'").get().id;
+  assert.equal((await call('POST', `/admin/revenue/${one}/delete`)).status, 200);
+  assert.equal((await call('POST', '/admin/members/2/delete')).data.status, 'deactivated');
+  sql.exec("INSERT INTO members (member_no, name, role) VALUES ('UF0200', '打錯的人', 'student')");
+  const wrong = sql.prepare("SELECT id FROM members WHERE member_no = 'UF0200'").get().id;
+  assert.equal((await call('POST', `/admin/members/${wrong}/delete`)).data.status, 'deleted');
+  // 會員編號留空 → 自動編號
+  const auto = await call('POST', '/admin/members', { json: { name: '自動編號', role: 'student' } });
+  assert.match(auto.data.member_no, /^UF\d{4}$/);
+});

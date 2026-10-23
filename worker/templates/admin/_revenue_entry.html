@@ -17,6 +17,11 @@
         </div>
         {% endif %}
     </div>
+    <div style="flex:1.4; min-width:150px;">
+        <label id="re-customer-label">客人姓名（選填）</label>
+        <input type="text" id="re-customer" list="re-customer-options" autocomplete="off" placeholder="打字會出現會員名單">
+        <datalist id="re-customer-options"></datalist>
+    </div>
     <div style="flex:1; min-width:110px;">
         <label>金額</label>
         <input type="number" id="re-amount" placeholder="金額" inputmode="numeric">
@@ -165,7 +170,9 @@
         box.style.display = "block";
         $("re-clear").onclick = clearPick;
         if (it.price != null) $("re-amount").value = it.price;
-        $("re-amount").focus();
+        const periodic = it.cat === "membership" && !/單次|製卡/.test(it.name) && /月|年/.test(it.name);
+        $("re-customer-label").textContent = periodic ? "客人姓名（必填，會自動延長會籍）" : "客人姓名（選填）";
+        (periodic ? $("re-customer") : $("re-amount")).focus();
     }
 
     function clearPick() {
@@ -174,6 +181,17 @@
         $("re-search").focus();
         render();
     }
+
+    let namesLoaded = false;
+    $("re-customer").addEventListener("focus", async () => {
+        if (namesLoaded) return; namesLoaded = true;
+        const res = await fetch("/admin/members/names");
+        if (!res.ok) return;
+        const list = await res.json();
+        // 同名的人要帶會員編號才分得出來；不同名的只放姓名
+        const count = {}; list.forEach((m) => { count[m.name] = (count[m.name] || 0) + 1; });
+        $("re-customer-options").innerHTML = list.map((m) => `<option value="${esc(count[m.name] > 1 ? `${m.name}（${m.member_no}）` : m.name)}">${esc(m.member_no)}</option>`).join("");
+    });
 
     const input = $("re-search");
     input.addEventListener("focus", () => { active = -1; render(); });
@@ -200,6 +218,7 @@
             amount: Number($("re-amount").value || 0),
             payment_method: $("re-payment").value.trim(),
             remittance_last5: $("re-last5").value.trim() || null,
+            customer_name: $("re-customer").value.trim() || null,
         };
         if (payload.remittance_last5 && payload.remittance_last5.length !== 5) {
             msg.className = "msg error"; msg.style.display = "block";
@@ -215,6 +234,9 @@
             method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
         });
         if (res.ok) {
+            const data = await res.json().catch(() => ({}));
+            const m = data.membership;
+            if (m) alert(`${m.created ? "已新建會員" : "已更新會員"}：${m.name}（${m.member_no}）\n會籍期間：${m.start} ～ ${m.until}`);
             location.reload();
         } else {
             const body = await res.json().catch(() => ({}));

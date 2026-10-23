@@ -9,7 +9,7 @@ import { normalizeInstant } from '../src/lib/time.js';
 
 // 依外鍵順序（被參照的先寫）
 export const TABLES = ['members', 'venue_rental_coaches', 'admin_users', 'binding_codes', 'contracts', 'contract_members', 'contract_sessions', 'class_records',
-  'coach_unavailabilities', 'schedules', 'notification_logs', 'item_catalog_entries', 'revenue_details', 'bookings', 'venue_bookings', 'app_settings', 'cash_movements', 'cash_closings'];
+  'coach_unavailabilities', 'schedules', 'notification_logs', 'item_catalog_entries', 'revenue_details', 'bookings', 'venue_bookings', 'trial_bookings', 'app_settings', 'cash_movements', 'cash_closings'];
 const SKIP = new Set(['alembic_version', 'd1_migrations', 'import_guard']);
 const DATETIME = new Set(['created_at', 'updated_at', 'expires_at', 'used_at', 'submitted_at', 'sent_at', 'interval_start', 'closed_at', 'reviewed_at', 'voided_at']);
 const NUMERIC = new Set(['unit_price', 'amount', 'default_price', 'opening_cash', 'cash_sales', 'movements_in', 'movements_out', 'expected_cash', 'counted_cash', 'variance', 'collected_amount', 'remaining_cash', 'cash_float_snapshot']);

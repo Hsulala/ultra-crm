@@ -96,7 +96,16 @@ liff.post('/class-records', async (c) => {
 
 liff.get('/bookings/mine', async (c) => {
   const coach = await requireMemberRole(c, 'coach');
-  return c.json((await bookingsForCoach(c.get('db'), coach.id)).map(bookingOut));
+  const db = c.get('db');
+  const rows = await bookingsForCoach(db, coach.id);
+  const members = await membersForContracts(db, [...new Set(rows.map((b) => b.contract_id))]);
+  const trials = await db.all("SELECT * FROM trial_bookings WHERE coach_id = ? AND status = 'booked' ORDER BY slot_date, slot_start_time", coach.id);
+  // 合約預約＋體驗課，依日期時間排序；student_names / kind 給「我的預約」頁顯示
+  const out = [
+    ...rows.map((b) => ({ ...bookingOut(b), kind: 'booking', student_names: (members.get(b.contract_id) ?? []).map((m) => m.name) })),
+    ...trials.map((t) => ({ id: t.id, coach_id: t.coach_id, contract_id: null, slot_date: t.slot_date, slot_start_time: t.slot_start_time, area: t.area, status: t.status, kind: 'trial', student_names: [t.customer_name] })),
+  ].sort((a, b) => (a.slot_date + a.slot_start_time).localeCompare(b.slot_date + b.slot_start_time));
+  return c.json(out);
 });
 
 liff.post('/bookings', async (c) => {

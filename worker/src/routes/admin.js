@@ -7,13 +7,13 @@ import { addDays, isDate, monthBounds, monthWeeks, nowMs, pad, taipeiParts, taip
 import { fromCents, money } from '../lib/money.js';
 import { pyDumps, PyFloat } from '../lib/pyjson.js';
 import { render } from '../render.js';
-import { buildDayGrid, bookingOut, cancelBooking, cancelVenueBooking, createBooking, createVenueBooking } from '../services/bookings.js';
+import { buildDayGrid, bookingOut, cancelBooking, cancelTrialBooking, cancelVenueBooking, createBooking, createTrialBooking, createVenueBooking } from '../services/bookings.js';
 import { activeContractsForCoach, contractOut, createClassRecord, createContract, membersForContract, membersForContracts } from '../services/contracts.js';
 import {
   ADMIN_ROLE_LABELS, ITEM_CATEGORIES, adminAccountOut, assignShift, bindingCodeOut, createAdminAccount, generateBindingCode,
   itemOut, itemsGrouped, listActiveItems, listVenueCoaches, publishMonth, removeScheduleEntry, scheduleOut, venueCoachOut,
 } from '../services/people.js';
-import { CATEGORY_LABELS, coachClassCounts, createRevenueEntry, dailySummary, monthlyEntries, monthlySummary, paymentMethodSuggestions, revenueOut } from '../services/revenue.js';
+import { CATEGORY_LABELS, applyMembershipPurchase, membershipMonths, coachClassCounts, createRevenueEntry, dailySummary, monthlyEntries, monthlySummary, paymentMethodSuggestions, revenueOut } from '../services/revenue.js';
 import * as cash from '../services/cash.js';
 import { runImport } from '../services/legacy.js';
 import { unlinkRichMenu } from '../lib/line.js';
@@ -90,7 +90,7 @@ export async function dashboard(c) {
     today_revenue: daily.total, month_revenue: monthly.total, today_booking_count: todayBookings, today_cash_sales: todayCash,
     target_date: target, prev_date: addDays(target, -1), next_date: addDays(target, 1), is_today: target === today,
     hours: grid.hours, columns: grid.columns, venue_columns: grid.venue_columns, pilates_cells: grid.pilates_cells,
-    contract_options_json: pyDumps(contractOptions), venue_coach_options_json: pyDumps(venueOptions), pilates_contract_options_json: pyDumps(grid.pilates_contract_options),
+    contract_options_json: pyDumps(contractOptions), venue_coach_options_json: pyDumps(venueOptions), pilates_contract_options_json: pyDumps(grid.pilates_contract_options), trial_coaches_json: pyDumps(grid.columns.map((col) => ({ id: col.coach_id, name: col.coach_name }))),
   });
 }
 
@@ -134,6 +134,17 @@ admin.post('/bookings/:id/cancel', async (c) => {
   await currentAdmin(c);
   return c.json(bookingOut(await cancelBooking(c.get('db'), pathId(c, 'id'))));
 });
+// 體驗課：不需要合約，同時記一筆體驗費營收
+admin.post('/trial-bookings', async (c) => {
+  const user = await requireRole(c, 'manager', 'front_desk');
+  const p = parseBody(await readJson(c), { coach_id: 'int', area: 'str', slot_date: 'date', slot_start_time: 'time', customer_name: 'str', customer_phone: 'str?', payment_method: 'str?', fee: 'float?' });
+  const t = await createTrialBooking(c.get('db'), { ...p, admin_id: user.id });
+  return c.json({ status: 'success', id: t.id });
+});
+admin.post('/trial-bookings/:id/cancel', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  return c.json({ status: 'success', ...(await cancelTrialBooking(c.get('db'), pathId(c, 'id'))) });
+});
 admin.post('/venue-bookings', async (c) => {
   await currentAdmin(c);
   const p = parseBody(await readJson(c), { venue_coach_id: 'int', customer_name: 'str', party_size: ['int', 1], area: ['str', 'strength'], slot_date: 'date', slot_start_time: 'time', slot_number: 'int', customer_phone: 'str?' });
@@ -148,6 +159,11 @@ admin.post('/venue-bookings/:id/cancel', async (c) => {
 
 // ---------- 會員 ----------
 const PAGE_SIZE = 50;
+// 下一個會員編號 UF0001…（取目前最大的 UF 編號 +1）
+export async function nextMemberNo(db) {
+  const max = Number(await db.value("SELECT coalesce(max(CAST(substr(member_no, 3) AS INTEGER)), 0) FROM members WHERE member_no GLOB 'UF[0-9]*'"));
+  return `UF${String(max + 1).padStart(4, '0')}`;
+}
 const memberOut = (m) => ({ id: m.id, member_no: m.member_no, name: m.name, role: m.role, membership_start_date: m.membership_start_date, membership_active_until: m.membership_active_until, membership_card_no: m.membership_card_no ?? null });
 
 admin.get('/members/page', async (c) => {
@@ -166,11 +182,17 @@ admin.get('/members/page', async (c) => {
   const members = await db.all(`SELECT m.*, (${MEMBER_KIND_SQL}) AS kind FROM members m ${where} ORDER BY m.created_at DESC, m.id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, ...args);
   return render(c, 'admin/members.html', { current_user: user, active: 'members', members, q: q ?? '', kind, page, pages, total });
 });
+// 營收「客人姓名」建議清單（學員、會員；不含教練）
+admin.get('/members/names', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  return c.json(await c.get('db').all("SELECT name, member_no FROM members WHERE is_active = 1 AND (role IS NULL OR role = 'student') ORDER BY name"));
+});
 admin.post('/members', async (c) => {
   await requireRole(c, 'manager', 'front_desk');
   const db = c.get('db');
-  const p = parseBody(await readJson(c), { member_no: 'str', name: 'str', role: 'str', membership_start_date: 'date?', membership_active_until: 'date?' });
+  const p = parseBody(await readJson(c), { member_no: 'str?', name: 'str', role: 'str', membership_start_date: 'date?', membership_active_until: 'date?' });
   if (!['student', 'coach'].includes(p.role)) fail(400, 'role 必須是 student 或 coach');
+  if (!p.member_no || !String(p.member_no).trim()) p.member_no = await nextMemberNo(db);
   if (await db.first('SELECT id FROM members WHERE member_no = ?', p.member_no)) fail(400, '會員編號已存在');
   const m = await db.first('INSERT INTO members (member_no, name, role, membership_start_date, membership_active_until) VALUES (?, ?, ?, ?, ?) RETURNING *',
     p.member_no, p.name, p.role, p.membership_start_date, p.membership_active_until);
@@ -202,6 +224,35 @@ admin.post('/members/:id/unbind', async (c) => {
     await db.run(`UPDATE members SET line_user_id = NULL, updated_at = ${NOW_SQL} WHERE id = ?`, m.id);
     await unlinkRichMenu(c.env, m.line_user_id);
   }
+  return c.json({ status: 'success' });
+});
+
+// 刪除會員：沒有任何合約、上課、預約、營收紀錄才真的刪；有紀錄就改成停用（歷史資料才對得上）
+admin.post('/members/:id/delete', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const db = c.get('db');
+  const m = await db.first('SELECT * FROM members WHERE id = ?', pathId(c, 'id'));
+  if (!m) fail(404, '找不到會員');
+  const used = await db.first(`SELECT
+      EXISTS (SELECT 1 FROM contract_members WHERE member_id = ?1)
+      OR EXISTS (SELECT 1 FROM contracts WHERE coach_id = ?1)
+      OR EXISTS (SELECT 1 FROM class_records WHERE actual_teaching_coach_id = ?1 OR logged_by_id = ?1)
+      OR EXISTS (SELECT 1 FROM bookings WHERE coach_id = ?1 OR created_by_id = ?1)
+      OR EXISTS (SELECT 1 FROM revenue_details WHERE coach_id = ?1 OR customer_name = ?2)
+      OR EXISTS (SELECT 1 FROM schedules WHERE coach_id = ?1)
+      OR EXISTS (SELECT 1 FROM admin_users WHERE linked_member_id = ?1) AS used`, m.id, m.name);
+  if (m.line_user_id) await unlinkRichMenu(c.env, m.line_user_id);
+  if (used?.used) {
+    await db.run(`UPDATE members SET is_active = 0, line_user_id = NULL, updated_at = ${NOW_SQL} WHERE id = ?`, m.id);
+    return c.json({ status: 'deactivated', message: `${m.name} 有歷史紀錄，已改成停用（資料保留）` });
+  }
+  await db.batch([db.prep('DELETE FROM binding_codes WHERE member_id = ?', [m.id]), db.prep('DELETE FROM members WHERE id = ?', [m.id])]);
+  return c.json({ status: 'deleted', message: `已刪除 ${m.name}` });
+});
+admin.post('/members/:id/activate', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const meta = await c.get('db').run(`UPDATE members SET is_active = 1, updated_at = ${NOW_SQL} WHERE id = ?`, pathId(c, 'id'));
+  if (!meta.changes) fail(404, '找不到會員');
   return c.json({ status: 'success' });
 });
 
@@ -456,17 +507,38 @@ admin.get('/revenue/page', async (c) => {
     items_by_category_json: itemsJs, payment_method_suggestions: payments,
   });
 });
+// 刪除營收：店長以上。現金收款的那天如果已經交班結帳，刪了會讓對帳對不上，所以擋下
+admin.post('/revenue/:id/delete', async (c) => {
+  await requireRole(c, 'manager');
+  const db = c.get('db');
+  const r = await db.first('SELECT * FROM revenue_details WHERE id = ?', pathId(c, 'id'));
+  if (!r) fail(404, '找不到這筆收款');
+  if (/現金/.test(r.payment_method) && await db.first('SELECT 1 FROM cash_closings WHERE business_date = ? LIMIT 1', r.entry_date)) {
+    fail(400, `${r.entry_date} 的現金已經交班結帳，這筆現金收款不能刪除；請改登記一筆負數金額沖銷`);
+  }
+  await db.run('DELETE FROM revenue_details WHERE id = ?', r.id);
+  return c.json({ status: 'deleted' });
+});
 admin.post('/revenue', async (c) => {
   const user = await requireRole(c, 'manager', 'front_desk');
   const p = parseBody(await readJson(c), {
     entry_date: 'date', item_category: 'str', item_name: 'str', payment_method: 'str', amount: 'float',
-    coach_id: 'int?', content: 'str?', contract_id: 'int?', remittance_last5: 'str?',
+    coach_id: 'int?', content: 'str?', contract_id: 'int?', remittance_last5: 'str?', customer_name: 'str?',
   });
   const last5 = String(p.remittance_last5 ?? '').trim();
   if (last5 && !/^\d{5}$/.test(last5)) fail(422, [{ type: 'value_error', loc: ['body', 'remittance_last5'], msg: 'Value error, 匯款末五碼必須是 5 位數字' }]);
+  const db = c.get('db');
+  const customer = String(p.customer_name ?? '').trim();
+  if (p.item_category === 'membership' && membershipMonths(p.item_name) && !customer) fail(400, '登記單月／半年／年繳會籍時請填客人姓名，系統會自動延長他的會籍');
   try {
-    const r = await createRevenueEntry(c.get('db'), { ...p, remittance_last5: last5 || null, entered_by_id: user.id });
-    return c.json(revenueOut(r));
+    // 會籍：先處理會員（同名多人等問題會在寫營收前就擋下）
+    let membership = null;
+    if (p.item_category === 'membership') {
+      try { membership = await applyMembershipPurchase(db, { customerName: customer, itemName: p.item_name, entryDate: p.entry_date, nextMemberNo }); } catch (e) { fail(400, e.message); }
+    }
+    const savedName = membership ? membership.name : (customer.replace(/\s*[（(]UF\d+[)）]$/, '') || null);
+    const r = await createRevenueEntry(db, { ...p, customer_name: savedName, remittance_last5: last5 || null, entered_by_id: user.id });
+    return c.json({ ...revenueOut(r), membership });
   } catch (error) {
     if (/CHECK constraint failed/.test(error.message)) fail(500, 'Internal Server Error');
     if (/FOREIGN KEY constraint failed/.test(error.message)) fail(400, '教練或合約不存在');

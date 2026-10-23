@@ -94,9 +94,9 @@
             {% for col in columns %}
             <td class="grid-cell" id="cell-{{ col.coach_id }}-{{ h|hh }}">
                 {% for booking in col.cells[h] %}
-                <div class="grid-booking">
+                <div class="grid-booking{% if booking.kind == 'trial' %} grid-trial{% endif %}">
                     {{ booking.label }}
-                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                    <span class="grid-cancel" onclick="{% if booking.kind == 'trial' %}cancelTrial{% else %}cancelBooking{% endif %}({{ booking.booking_id }})">×</span>
                 </div>
                 {% endfor %}
                 {% if col.cells[h]|length == 0 %}
@@ -119,9 +119,9 @@
             {% endfor %}
             <td class="grid-cell" id="pcell-{{ h|hh }}">
                 {% for booking in pilates_cells[h] %}
-                <div class="grid-booking">
+                <div class="grid-booking{% if booking.kind == 'trial' %} grid-trial{% endif %}">
                     {{ booking.label }}
-                    <span class="grid-cancel" onclick="cancelBooking({{ booking.booking_id }})">×</span>
+                    <span class="grid-cancel" onclick="{% if booking.kind == 'trial' %}cancelTrial{% else %}cancelBooking{% endif %}({{ booking.booking_id }})">×</span>
                 </div>
                 {% endfor %}
                 <button class="grid-add-btn" onclick="showPilatesAddForm('{{ h|hh }}:00:00', this)">＋</button>
@@ -175,16 +175,12 @@
 
     function showAddForm(coachId, hourStr, btn) {
         const options = CONTRACT_OPTIONS[coachId] || [];
-        if (options.length === 0) {
-            alert("這位教練目前沒有進行中的合約可以約課");
-            return;
-        }
         const select = document.createElement("select");
         select.style.fontSize = "11px";
         select.style.width = "100%";
-        select.innerHTML = '<option value="">選合約約課...</option>' +
+        select.innerHTML = '<option value="">選合約約課...</option><option value="trial">＋ 體驗課（不用合約）</option>' +
             options.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
-        select.onchange = () => addBooking(coachId, select.value, hourStr);
+        select.onchange = () => select.value === "trial" ? openTrial("strength", coachId, hourStr, select) : addBooking(coachId, select.value, hourStr);
         btn.replaceWith(select);
         select.focus();
     }
@@ -284,16 +280,12 @@
     }
 
     function showPilatesAddForm(hourStr, btn) {
-        if (PILATES_CONTRACT_OPTIONS.length === 0) {
-            alert("目前沒有進行中的皮拉提斯合約可以約課");
-            return;
-        }
         const select = document.createElement("select");
         select.style.fontSize = "11px";
         select.style.width = "100%";
-        select.innerHTML = '<option value="">選合約約課...</option>' +
+        select.innerHTML = '<option value="">選合約約課...</option><option value="trial">＋ 體驗課（不用合約）</option>' +
             PILATES_CONTRACT_OPTIONS.map(o => `<option value="${o.contract_id}">${o.label}</option>`).join("");
-        select.onchange = () => addPilatesBooking(select.value, hourStr);
+        select.onchange = () => select.value === "trial" ? openTrial("pilates", null, hourStr, select) : addPilatesBooking(select.value, hourStr);
         btn.replaceWith(select);
         select.focus();
     }
@@ -316,5 +308,75 @@
             alert(body.detail || "約課失敗");
         }
     }
+
+    // ---- 體驗課 ----
+    const TRIAL_COACHES = {{ trial_coaches_json | safe }};
+    const TRIAL_FEES = { strength: 500, pilates: 900 };
+    let trialCtx = null;
+    function openTrial(area, coachId, hourStr, select) {
+        select.value = "";
+        trialCtx = { area, hourStr };
+        const dlg = document.getElementById("trial-dlg");
+        document.getElementById("trial-title").textContent = `${area === "pilates" ? "皮拉提斯" : "重訓"}體驗課　${TARGET_DATE} ${hourStr.slice(0, 5)}`;
+        const coachSel = document.getElementById("trial-coach");
+        coachSel.innerHTML = TRIAL_COACHES.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+        if (coachId) coachSel.value = String(coachId);
+        document.getElementById("trial-coach-wrap").style.display = coachId ? "none" : "block";
+        document.getElementById("trial-name").value = "";
+        document.getElementById("trial-phone").value = "";
+        document.getElementById("trial-fee").value = TRIAL_FEES[area];
+        document.getElementById("trial-pay").value = "現金";
+        document.getElementById("trial-msg").textContent = "";
+        dlg.showModal();
+        document.getElementById("trial-name").focus();
+    }
+    async function submitTrial() {
+        const name = document.getElementById("trial-name").value.trim();
+        const msg = document.getElementById("trial-msg");
+        if (!name) { msg.textContent = "請填體驗者姓名"; return; }
+        const res = await fetch("/admin/trial-bookings", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                coach_id: Number(document.getElementById("trial-coach").value), area: trialCtx.area,
+                slot_date: TARGET_DATE, slot_start_time: trialCtx.hourStr, customer_name: name,
+                customer_phone: document.getElementById("trial-phone").value.trim() || null,
+                payment_method: document.getElementById("trial-pay").value,
+                fee: Number(document.getElementById("trial-fee").value || 0),
+            }),
+        });
+        if (res.ok) location.reload();
+        else { const b = await res.json().catch(() => ({})); msg.textContent = typeof b.detail === "string" ? b.detail : "預約失敗"; }
+    }
+    async function cancelTrial(id) {
+        if (!confirm("確定取消這堂體驗課？體驗費營收會一起刪除。")) return;
+        const res = await fetch(`/admin/trial-bookings/${id}/cancel`, { method: "POST" });
+        const b = await res.json().catch(() => ({}));
+        if (res.ok) { if (!b.revenue_removed) alert("體驗課已取消。這筆體驗費是現金且當天已交班結帳，營收沒有刪除，請手動沖銷。"); location.reload(); }
+        else alert(typeof b.detail === "string" ? b.detail : "取消失敗");
+    }
 </script>
+
+<dialog id="trial-dlg" class="trial-dlg">
+    <h3 id="trial-title">體驗課</h3>
+    <div id="trial-coach-wrap"><label>教練</label><select id="trial-coach"></select></div>
+    <label>姓名</label><input type="text" id="trial-name" placeholder="體驗者姓名">
+    <label>電話（選填）</label><input type="tel" id="trial-phone" inputmode="tel" placeholder="09xx-xxx-xxx">
+    <div style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>體驗費</label><input type="number" id="trial-fee" inputmode="numeric"></div>
+        <div style="flex:1;"><label>付款方式</label><select id="trial-pay"><option>現金</option><option>匯款</option><option>信用卡</option><option>Line Pay</option></select></div>
+    </div>
+    <p class="hint" style="margin:6px 0 0;">送出後會在當天營收記一筆體驗費</p>
+    <div id="trial-msg" style="color:var(--danger); font-weight:700; min-height:20px; margin-top:6px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-sm" onclick="document.getElementById('trial-dlg').close()">取消</button>
+        <button class="primary" onclick="submitTrial()">預約體驗課</button>
+    </div>
+</dialog>
+<style>
+    .trial-dlg { border: 3px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--ink); padding: 20px 22px; width: min(420px, 92vw); }
+    .trial-dlg::backdrop { background: rgba(0,0,0,.35); }
+    .trial-dlg h3 { margin: 0 0 12px; font-size: 18px; }
+    .trial-dlg input, .trial-dlg select { width: 100%; margin-bottom: 10px; }
+    .grid-trial { background: var(--accent-soft) !important; border-color: var(--accent) !important; }
+</style>
 {% endblock %}

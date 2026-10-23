@@ -3,29 +3,30 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>會員卡</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link rel="stylesheet" href="../shared.css">
 <style>
-    /* 會員卡：櫃台用眼睛確認。即時時鐘＋持續流動的條紋，截圖或錄影重播都看得出來 */
-    .member-card { position: relative; overflow: hidden; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 6px 6px 0 var(--ink); background: #111; color: #fff; padding: 22px 22px 18px; }
-    .member-card.expired { background: #6b6966; }
-    .member-card .flow { position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 26px, rgba(236,123,45,.22) 26px 52px); background-size: 300% 300%; animation: flow 6s linear infinite; pointer-events: none; }
-    .member-card.expired .flow { background: repeating-linear-gradient(115deg, transparent 0 26px, rgba(255,255,255,.08) 26px 52px); background-size: 300% 300%; }
-    @keyframes flow { from { background-position: 0 0; } to { background-position: 100% 100%; } }
-    .member-card > *:not(.flow) { position: relative; }
-    .brand { font: italic 800 22px "Barlow Condensed", sans-serif; letter-spacing: .16em; color: var(--accent); }
-    .member-name { font-size: 30px; font-weight: 900; margin: 14px 0 2px; line-height: 1.2; }
+    /* 會員卡：乾淨的黑底卡。防分享靠「會動的東西」—— 即時跳秒的時鐘與閃爍圓點，截圖是靜止的，櫃台一看就知道 */
+    .member-card { border: 3px solid var(--ink); border-radius: 22px; box-shadow: 6px 6px 0 var(--ink); background: #141414; color: #fff; padding: 22px 22px 20px; }
+    .member-card.expired { background: #5f5d5a; }
+    .card-top { display: flex; justify-content: space-between; align-items: center; }
+    .card-top img { width: 64px; height: 64px; background: #fff; border-radius: 14px; padding: 6px; }
+    .brand { font: italic 800 20px "Barlow Condensed", sans-serif; letter-spacing: .16em; color: var(--accent); }
+    .member-name { font-size: 30px; font-weight: 900; margin: 16px 0 2px; line-height: 1.2; }
     .member-sub { font-size: 14px; opacity: .8; }
     .status-pill { display: inline-block; margin-top: 14px; padding: 3px 16px; border-radius: 999px; border: 2px solid #fff; font-weight: 900; font-size: 15px; }
     .status-pill.ok { background: var(--accent); }
     .status-pill.no { background: var(--danger); }
-    .period { margin-top: 14px; font-size: 14px; }
+    .period { margin-top: 12px; font-size: 14px; }
     .period b { font-size: 16px; }
-    .clock { margin-top: 18px; text-align: center; font: italic 800 46px "Barlow Condensed", sans-serif; letter-spacing: .06em; line-height: 1; }
-    .clock-date { text-align: center; font-size: 14px; opacity: .85; margin-top: 4px; }
-    .pulse { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: middle; animation: pulse 1s ease-in-out infinite; }
-    @keyframes pulse { 50% { transform: scale(.4); opacity: .4; } }
+    .live { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); text-align: center; }
+    .clock { font: italic 800 56px "Barlow Condensed", sans-serif; letter-spacing: .05em; line-height: 1; }
+    .clock-date { font-size: 14px; opacity: .85; margin-top: 6px; }
+    .pulse { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); margin-right: 10px; vertical-align: middle; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { transform: scale(.35); opacity: .35; } }
     .note { text-align: center; font-size: 13px; color: var(--muted); margin-top: 16px; }
 </style>
 </head>
@@ -69,16 +70,14 @@
                 : `<span class="status-pill no">${noMembership ? "尚無會籍" : "會籍已到期"}</span>`;
             content.innerHTML = `
             <div class="member-card ${card.active ? "" : "expired"}">
-                <div class="flow"></div>
-                <div class="brand">ULTRA FITNESS</div>
+                <div class="card-top"><div class="brand">ULTRA FITNESS<br>MEMBERSHIP</div><img src="../apple-touch-icon.png" alt="Ultra"></div>
                 <div class="member-name">${card.name}</div>
                 <div class="member-sub">${card.card_no ? `卡號 ${card.card_no}　` : ""}會員編號 ${card.member_no}</div>
                 ${status}
                 ${card.until ? `<div class="period">會籍期間　<b>${card.start || "?"} ～ ${card.until}</b>${card.active && left <= 14 ? `<br>◆ 還有 ${left} 天到期，請洽櫃台續約` : ""}</div>` : ""}
-                <div class="clock" id="clock"></div>
-                <div class="clock-date" id="clock-date"></div>
+                <div class="live"><div class="clock" id="clock"></div><div class="clock-date" id="clock-date"></div></div>
             </div>
-            <div class="note">時間與條紋會即時跳動；截圖無效</div>`;
+            <div class="note">秒數與圓點會即時跳動，截圖畫面是靜止的</div>`;
             tick();
             setInterval(tick, 1000);
         } catch (err) {

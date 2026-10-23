@@ -7,7 +7,7 @@ import { HttpError } from '../lib/http.js';
 import { toCents } from '../lib/money.js';
 
 export const BUNDLE_FORMAT = 'ultra-legacy-v1';
-const CLEAR_TABLES = ['notification_logs', 'bookings', 'class_records', 'contract_sessions', 'revenue_details', 'contract_members', 'binding_codes',
+const CLEAR_TABLES = ['notification_logs', 'trial_bookings', 'bookings', 'class_records', 'contract_sessions', 'revenue_details', 'contract_members', 'binding_codes',
   'schedules', 'coach_unavailabilities', 'venue_bookings', 'cash_movements', 'cash_closings', 'contracts', 'members', 'venue_rental_coaches'];
 const MAX_SQL = 90_000; // D1 單一指令約 100KB
 

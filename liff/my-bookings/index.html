@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<title>我的預約</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <span class="eyebrow">MY SCHEDULE</span>
+        <h1>我的預約</h1>
+        <p>今天起已排定的課，依日期排列</p>
+    </div>
+    <div id="content"><div class="loading">載入中...</div></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-coach-dk";
+    const AREA_NAMES = { strength: "重訓", pilates: "皮拉提斯" };
+    const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+
+    function today() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+    function dayLabel(iso) {
+        const d = new Date(iso + "T00:00:00Z");
+        const t = today();
+        const tag = iso === t ? "今天" : iso === new Date(Date.parse(t) + 86400000).toISOString().slice(0, 10) ? "明天" : "";
+        return `${d.getUTCMonth() + 1}/${d.getUTCDate()}（${WEEK[d.getUTCDay()]}）${tag ? "　" + tag : ""}`;
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            const list = await apiFetch("/api/liff/bookings/mine", DEV_LINE_USER_ID);
+            if (!list) return;
+            const upcoming = list.filter((b) => b.slot_date >= today());
+            if (!upcoming.length) {
+                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有排定的課</div>`;
+                return;
+            }
+            const byDay = new Map();
+            for (const b of upcoming) { if (!byDay.has(b.slot_date)) byDay.set(b.slot_date, []); byDay.get(b.slot_date).push(b); }
+            content.innerHTML = [...byDay.entries()].map(([day, items]) => `
+                <div class="section-title">${dayLabel(day)}</div>
+                <div class="card">${items.map((b) => `
+                    <div class="booking-row">
+                        <span>${b.kind === "trial" ? "【體驗】" : ""}${b.student_names.join("、") || "（未填學員）"}｜${AREA_NAMES[b.area] || b.area}</span>
+                        <b>${b.slot_start_time.slice(0, 5)}</b>
+                    </div>`).join("")}
+                </div>`).join("");
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

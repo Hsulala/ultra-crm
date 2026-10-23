@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <title>{% block title %}Ultra Fitness 後台{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;1,800&family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
@@ -131,6 +133,17 @@
         .stat-card:first-child .value { color: var(--accent); }
 
         .panel { background: var(--panel); border: 3px solid var(--ink); border-radius: 18px; box-shadow: var(--offset); padding: 22px; margin-bottom: 24px; overflow-x: auto; }
+        /* 面板內有下拉建議清單時不能裁切，否則清單會被藏在面板裡 */
+        .panel:has(.re-list), .panel:has(.combo-list) { overflow: visible; }
+        /* 可打字搜尋的下拉選單（select 加 data-combo） */
+        .combo { position: relative; }
+        .combo-list { position: absolute; left: 0; right: 0; top: 100%; z-index: 30; background: #fff; border: 2px solid var(--ink); border-radius: 12px; margin-top: 4px; max-height: 300px; overflow-y: auto; box-shadow: 4px 4px 0 var(--ink); display: none; }
+        .combo-list.open { display: block; }
+        .combo-item { padding: 8px 12px; cursor: pointer; font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+        .combo-item:hover, .combo-item.active { background: var(--accent-soft); }
+        .combo-item small { color: var(--muted); }
+        .combo-empty { padding: 10px 12px; color: var(--muted); font-size: 14px; }
+
         .panel h2 { font-size: 18px; font-weight: 900; letter-spacing: 0; margin: 0 0 14px; color: var(--ink); border: 0; padding: 0; }
         .panel-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
         .panel-head h2 { margin: 0; }
@@ -285,6 +298,45 @@
                 }
             });
         }
+    </script>
+    <script>
+    // 把 <select data-combo> 變成可打字搜尋：原本的 select 留著（隱藏）保存選到的值，其他程式照樣讀 select.value
+    function enhanceCombo(sel) {
+        if (sel.dataset.comboReady) return;
+        sel.dataset.comboReady = "1";
+        const opts = [...sel.options].filter((o) => o.value).map((o) => ({ value: o.value, text: o.textContent.trim(), group: o.parentElement.tagName === "OPTGROUP" ? o.parentElement.label : "" }));
+        const placeholder = (sel.options[0] && !sel.options[0].value) ? sel.options[0].textContent.trim() : "輸入關鍵字搜尋";
+        const wrap = document.createElement("div"); wrap.className = "combo";
+        const input = document.createElement("input"); input.type = "text"; input.placeholder = placeholder + "（可打字搜尋）"; input.autocomplete = "off";
+        const list = document.createElement("div"); list.className = "combo-list";
+        sel.parentNode.insertBefore(wrap, sel); wrap.appendChild(input); wrap.appendChild(list); wrap.appendChild(sel);
+        sel.style.display = "none";
+        let shown = []; let active = -1;
+        const sync = () => { const o = opts.find((x) => x.value === sel.value); input.value = o ? o.text : ""; };
+        function render() {
+            const words = input.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+            shown = opts.filter((o) => words.every((w) => (o.text + " " + o.group).toLowerCase().includes(w))).slice(0, 60);
+            active = shown.length ? 0 : -1;
+            list.innerHTML = shown.length
+                ? shown.map((o, i) => `<div class="combo-item${i === active ? " active" : ""}" data-i="${i}"><span>${o.text}</span>${o.group ? `<small>${o.group}</small>` : ""}</div>`).join("")
+                : `<div class="combo-empty">找不到符合的項目</div>`;
+            list.classList.add("open");
+        }
+        function pick(o) { sel.value = o ? o.value : ""; sync(); list.classList.remove("open"); sel.dispatchEvent(new Event("change", { bubbles: true })); }
+        input.addEventListener("focus", () => { input.select(); render(); });
+        input.addEventListener("input", () => { if (!input.value.trim()) { sel.value = ""; sel.dispatchEvent(new Event("change", { bubbles: true })); } render(); });
+        input.addEventListener("keydown", (e) => {
+            if (!list.classList.contains("open")) return;
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") { e.preventDefault(); active = Math.max(0, Math.min(shown.length - 1, active + (e.key === "ArrowDown" ? 1 : -1))); list.querySelectorAll(".combo-item").forEach((el, i) => el.classList.toggle("active", i === active)); list.querySelector(".combo-item.active")?.scrollIntoView({ block: "nearest" }); }
+            else if (e.key === "Enter") { e.preventDefault(); if (active >= 0) pick(shown[active]); }
+            else if (e.key === "Escape") { list.classList.remove("open"); sync(); }
+        });
+        list.addEventListener("mousedown", (e) => { const el = e.target.closest(".combo-item"); if (el) { e.preventDefault(); pick(shown[+el.dataset.i]); } });
+        input.addEventListener("blur", () => setTimeout(() => { list.classList.remove("open"); sync(); }, 120));
+        sel.addEventListener("combo:refresh", sync);
+        sync();
+    }
+    document.querySelectorAll("select[data-combo]").forEach(enhanceCombo);
     </script>
 </body>
 </html>

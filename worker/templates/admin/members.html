@@ -5,12 +5,12 @@
 
 <div class="panel">
     <h2>新增會員 / 教練</h2>
-    <p class="hint">單次會籍不用填會籍起訖日，直接去「營收」頁登記一筆即可；單月會籍才需要填。</p>
+    <p class="hint">選會籍方案就會自動算出迄日（也可以手動改）。在「營收」登記會籍並填客人姓名時，系統會自動延長會籍，通常不用在這裡填。單次會籍不用填。</p>
     <div id="create-msg" class="msg"></div>
     <div class="form-row">
         <div>
             <label>會員編號</label>
-            <input type="text" id="f-member-no" placeholder="例如 UF0003">
+            <input type="text" id="f-member-no" placeholder="留空自動編號">
         </div>
         <div>
             <label>姓名</label>
@@ -26,11 +26,20 @@
     </div>
     <div class="form-row">
         <div>
-            <label>會籍起日（選填，單月會籍）</label>
-            <input type="date" id="f-membership-start">
+            <label>會籍方案</label>
+            <select id="f-plan" onchange="applyPlan('f-plan', 'f-membership-start', 'f-membership-end')">
+                <option value="">無會籍</option>
+                <option value="1">單月</option>
+                <option value="6">半年</option>
+                <option value="12">年繳</option>
+            </select>
         </div>
         <div>
-            <label>會籍迄日（選填，單月會籍）</label>
+            <label>會籍起日</label>
+            <input type="date" id="f-membership-start" onchange="applyPlan('f-plan', 'f-membership-start', 'f-membership-end')">
+        </div>
+        <div>
+            <label>會籍迄日</label>
             <input type="date" id="f-membership-end">
         </div>
         <div style="display:flex; align-items:flex-end;">
@@ -64,7 +73,7 @@
         {% for m in members %}
         <tr id="row-{{ m.id }}">
             <td>{{ m.member_no }}</td>
-            <td>{{ m.name }}</td>
+            <td>{{ m.name }}{% if not m.is_active %} <span class="badge" style="background:#eeedea;color:#5d5c58;">已停用</span>{% endif %}</td>
             <td><span class="badge badge-{{ m.kind }}">{{ {"student": "學員", "membership": "會員", "venue_student": "場租學生", "coach": "教練"}[m.kind] if m.kind else "未設定" }}</span></td>
             <td id="membership-display-{{ m.id }}">
                 {% if m.membership_start_date or m.membership_active_until %}
@@ -79,12 +88,14 @@
                 {% if m.kind != "venue_student" %}<button onclick="issueBindingCode({{ m.id }})" class="btn-sm">產生綁定碼</button>{% else %}<span style="color:var(--muted);font-size:13px;">場租學生不綁定</span>{% endif %}
                 {% if m.line_user_id %}<button onclick="unbindLine('/admin/members/{{ m.id }}/unbind', '{{ m.name }}')" class="btn-sm danger">解除綁定</button>{% endif %}
                 <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" class="btn-sm">編輯會籍</button>
+                {% if m.is_active %}<button onclick="deleteMember({{ m.id }}, '{{ m.name }}')" class="btn-sm danger">刪除</button>{% else %}<button onclick="activateMember({{ m.id }})" class="btn-sm">恢復啟用</button>{% endif %}
             </td>
         </tr>
         <tr id="membership-edit-{{ m.id }}" style="display:none;">
             <td colspan="6" style="background:var(--accent-soft);">
                 <div class="form-row" style="margin-bottom:0; align-items:flex-end;">
-                    <div><label>會籍起日</label><input type="date" id="edit-start-{{ m.id }}"></div>
+                    <div><label>續約方案</label><select id="edit-plan-{{ m.id }}" onchange="applyPlan('edit-plan-{{ m.id }}', 'edit-start-{{ m.id }}', 'edit-end-{{ m.id }}')"><option value="">手動填日期</option><option value="1">單月</option><option value="6">半年</option><option value="12">年繳</option></select></div>
+                    <div><label>會籍起日</label><input type="date" id="edit-start-{{ m.id }}" onchange="applyPlan('edit-plan-{{ m.id }}', 'edit-start-{{ m.id }}', 'edit-end-{{ m.id }}')"></div>
                     <div><label>會籍迄日</label><input type="date" id="edit-end-{{ m.id }}"></div>
                     <div><button class="primary" onclick="saveMembership({{ m.id }})">儲存</button></div>
                 </div>
@@ -119,6 +130,24 @@
         location.href = "/admin/members/page" + (params.toString() ? "?" + params : "");
     }
 
+    // 台北今天（YYYY-MM-DD）
+    function taipeiToday() { return new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); }
+    // 起日 + N 個月 - 1 天（1/15 起的單月 → 2/14）
+    function planEnd(start, months) {
+        const [y, m, d] = start.split("-").map(Number);
+        const last = new Date(Date.UTC(y, m - 1 + months + 1, 0)).getUTCDate();
+        const end = new Date(Date.UTC(y, m - 1 + months, Math.min(d, last)));
+        end.setUTCDate(end.getUTCDate() - 1);
+        return end.toISOString().slice(0, 10);
+    }
+    function applyPlan(planId, startId, endId) {
+        const months = parseInt(document.getElementById(planId).value, 10);
+        if (!months) return;
+        const startEl = document.getElementById(startId);
+        if (!startEl.value) startEl.value = taipeiToday();
+        document.getElementById(endId).value = planEnd(startEl.value, months);
+    }
+
     async function createMember() {
         const msg = document.getElementById("create-msg");
         msg.style.display = "none";
@@ -129,8 +158,8 @@
             membership_start_date: document.getElementById("f-membership-start").value || null,
             membership_active_until: document.getElementById("f-membership-end").value || null,
         };
-        if (!payload.member_no || !payload.name) {
-            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫會員編號與姓名";
+        if (!payload.name) {
+            msg.className = "msg error"; msg.style.display = "block"; msg.textContent = "請填寫姓名";
             return;
         }
         const res = await fetch("/admin/members", {
@@ -142,6 +171,17 @@
             const body = await res.json().catch(() => ({}));
             msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
         }
+    }
+
+    async function deleteMember(id, name) {
+        if (!confirm(`確定要刪除 ${name}？\n沒有任何合約、上課、營收紀錄的會員會直接刪除；有紀錄的會改成「停用」，資料保留。`)) return;
+        const res = await fetch(`/admin/members/${id}/delete`, { method: "POST" });
+        const b = await res.json().catch(() => ({}));
+        if (res.ok) { alert(b.message || "完成"); location.reload(); } else alert(typeof b.detail === "string" ? b.detail : "刪除失敗");
+    }
+    async function activateMember(id) {
+        const res = await fetch(`/admin/members/${id}/activate`, { method: "POST" });
+        if (res.ok) location.reload(); else alert("恢復失敗");
     }
 
     async function unbindLine(url, name) {
@@ -168,6 +208,15 @@
         if (!showing) {
             document.getElementById(`edit-start-${memberId}`).value = start;
             document.getElementById(`edit-end-${memberId}`).value = end;
+            document.getElementById(`edit-plan-${memberId}`).value = "";
+            // 選了續約方案時：還沒到期就從原迄日隔天接續，已到期就從今天開始
+            document.getElementById(`edit-plan-${memberId}`).onchange = () => {
+                const t = taipeiToday();
+                let next = t;
+                if (end && end >= t) { const d = new Date(end + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + 1); next = d.toISOString().slice(0, 10); }
+                document.getElementById(`edit-start-${memberId}`).value = next;
+                applyPlan(`edit-plan-${memberId}`, `edit-start-${memberId}`, `edit-end-${memberId}`);
+            };
         }
     }
 

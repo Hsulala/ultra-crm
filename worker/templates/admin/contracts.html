@@ -19,7 +19,7 @@
         </div>
         <div>
             <label>教練</label>
-            <select id="f-coach">
+            <select id="f-coach" data-combo>
                 <option value="">請選擇教練</option>
                 <optgroup label="店內教練">
                     {% for c in coaches %}<option value="m-{{ c.id }}">{{ c.name }}</option>{% endfor %}
@@ -40,15 +40,15 @@
 
     <div class="form-row" id="existing-student-row">
         <div>
-            <label>學員（1對2 合約再選第二位）</label>
-            <select id="f-student1">
+            <label>學員 1</label>
+            <select id="f-student1" data-combo>
                 <option value="">請選擇學員</option>
                 {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
             </select>
         </div>
         <div>
-            <label>共同學員（選填，1對2；若共同學員是新學員，用上面「全新學員」勾選處理）</label>
-            <select id="f-student2">
+            <label>學員 2（1對2 才填，兩人共用同一份合約的堂數）</label>
+            <select id="f-student2" data-combo>
                 <option value="">無</option>
                 {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
             </select>
@@ -65,8 +65,8 @@
             <input type="text" id="f-new-student-phone" placeholder="電話">
         </div>
         <div>
-            <label>1對2 共同學員（選填，既有會員）</label>
-            <select id="f-student2-with-new">
+            <label>學員 2（1對2 才填，既有會員）</label>
+            <select id="f-student2-with-new" data-combo>
                 <option value="">無</option>
                 {% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}
             </select>
@@ -179,6 +179,9 @@
 </style>
 
 <script>
+    // 購買日期預設今天（台北）
+    (() => { const el = document.getElementById("f-purchase-date"); if (el && !el.value) el.value = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10); })();
+
     function toggleSessions(id) {
         const row = document.getElementById("sessions-" + id);
         row.style.display = row.style.display === "none" ? "table-row" : "none";

@@ -35,13 +35,15 @@
     <div id="panel-today">
         {% if today_entries %}
         <table>
-            <tr><th>品項分類</th><th>品項名稱</th><th>金額</th><th>付款方式</th></tr>
+            <tr><th>品項分類</th><th>品項名稱</th><th>姓名</th><th>金額</th><th>付款方式</th>{% if current_user.role in ["manager", "super_admin"] %}<th></th>{% endif %}</tr>
             {% for e in today_entries %}
             <tr>
                 <td>{{ category_labels.get(e.item_category, e.item_category) }}</td>
                 <td>{{ e.item_name }}</td>
+                <td>{{ e.customer_name or "" }}</td>
                 <td>${{ (e.amount)|fmt0 }}</td>
                 <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
+                {% if current_user.role in ["manager", "super_admin"] %}<td><button class="btn-sm danger" onclick="deleteRevenue({{ e.id }}, '{{ e.item_name }}', {{ e.amount }})">刪除</button></td>{% endif %}
             </tr>
             {% endfor %}
         </table>
@@ -78,7 +80,7 @@
         <h2>{{ month_label }}收款明細（共 {{ month_entries|length }} 筆）</h2>
         {% if month_entries %}
         <table>
-            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>姓名</th><th>教練</th><th>金額</th><th>付款方式</th></tr>
+            <tr><th>日期</th><th>品項分類</th><th>品項名稱</th><th>姓名</th><th>教練</th><th>金額</th><th>付款方式</th>{% if current_user.role in ["manager", "super_admin"] %}<th></th>{% endif %}</tr>
             {% for e in month_entries %}
             <tr>
                 <td>{{ e.entry_date }}</td>
@@ -88,6 +90,7 @@
                 <td>{{ e.coach_name or "" }}</td>
                 <td>${{ (e.amount)|fmt0 }}</td>
                 <td>{{ e.payment_method }}{% if e.remittance_last5 %}（末五碼 {{ e.remittance_last5 }}）{% endif %}</td>
+                {% if current_user.role in ["manager", "super_admin"] %}<td><button class="btn-sm danger" onclick="deleteRevenue({{ e.id }}, '{{ e.item_name }}', {{ e.amount }})">刪除</button></td>{% endif %}
             </tr>
             {% endfor %}
         </table>
@@ -107,6 +110,13 @@
 </style>
 
 <script>
+    async function deleteRevenue(id, name, amount) {
+        if (!confirm(`確定刪除這筆收款？\n${name}　$${Number(amount).toLocaleString()}\n\n刪除後無法復原。若是會籍收款，會員的會籍日期不會自動改回，請到會員頁手動調整。`)) return;
+        const res = await fetch(`/admin/revenue/${id}/delete`, { method: "POST" });
+        if (res.ok) location.reload();
+        else { const b = await res.json().catch(() => ({})); alert(typeof b.detail === "string" ? b.detail : "刪除失敗"); }
+    }
+
     function switchTab(tab) {
         document.getElementById("tab-today").classList.toggle("active", tab === "today");
         document.getElementById("tab-month").classList.toggle("active", tab === "month");

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="../favicon.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
 <title>會員綁定</title>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <link rel="stylesheet" href="../shared.css">
@@ -41,8 +43,8 @@
         document.getElementById("content").innerHTML = `
         <div class="card">
             <label for="code">綁定碼</label>
-            <input type="text" id="code" class="code-input" autocomplete="off" autocapitalize="characters" placeholder="請輸入綁定碼">
-            <p class="hint">綁定碼請向櫃台索取，有效期限內只能使用一次</p>
+            <input type="text" id="code" class="code-input" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code" placeholder="6 位數字">
+            <p class="hint">6 位數字綁定碼請向櫃台索取，有效期限內只能使用一次</p>
             <button class="primary" id="submit">確認綁定</button>
         </div>`;
         document.getElementById("submit").addEventListener("click", submit);
@@ -50,7 +52,7 @@
 
     async function submit() {
         const btn = document.getElementById("submit");
-        const code = document.getElementById("code").value.trim().toUpperCase();
+        const code = document.getElementById("code").value.replace(/\D/g, "");
         if (!code) { showMessage(`<div class="error-box">請先輸入綁定碼</div>`); return; }
         btn.disabled = true; btn.textContent = "綁定中...";
         try {
