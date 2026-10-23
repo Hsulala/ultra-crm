@@ -18,7 +18,20 @@ function randomCode() {
   return String(n).padStart(6, '0');
 }
 
+// 學員分類（role 都是 student）：
+//   student       學員：有店內正職教練的課程合約
+//   membership    會員：沒有店內教練課，但有會籍起訖日
+//   venue_student 場租學生：只跟場租教練上課 → 不能綁定 LINE
+export const MEMBER_KIND_SQL = `CASE WHEN m.role = 'coach' THEN 'coach'
+  WHEN EXISTS (SELECT 1 FROM contract_members cm JOIN contracts c ON c.id = cm.contract_id WHERE cm.member_id = m.id AND c.coach_id IS NOT NULL) THEN 'student'
+  WHEN m.membership_start_date IS NOT NULL OR m.membership_active_until IS NOT NULL THEN 'membership'
+  WHEN EXISTS (SELECT 1 FROM contract_members cm JOIN contracts c ON c.id = cm.contract_id WHERE cm.member_id = m.id AND c.venue_coach_id IS NOT NULL) THEN 'venue_student'
+  ELSE 'student' END`;
+export const memberKind = async (db, memberId) => (await db.first(`SELECT ${MEMBER_KIND_SQL} AS kind FROM members m WHERE m.id = ?`, memberId))?.kind ?? null;
+export const VENUE_STUDENT_MSG = '場租學生不提供 LINE 綁定';
+
 export async function generateBindingCode(db, { memberId = null, venueCoachId = null, createdByAdminId = null }) {
+  if (memberId != null && await memberKind(db, memberId) === 'venue_student') throw new BindingError(VENUE_STUDENT_MSG);
   if ((memberId == null) === (venueCoachId == null)) throw new BindingError('member_id 跟 venue_coach_id 必須恰好指定一個');
   const target = memberId != null ? ['member_id', memberId] : ['venue_coach_id', venueCoachId];
   const expires = isoUtc(new Date(nowMs() + BINDING_CODE_TTL_MINUTES * 60_000));
@@ -40,6 +53,7 @@ export async function redeemBindingCode(db, env, { code, lineUserId }) {
     await db.run(`UPDATE binding_codes SET status = 'expired', updated_at = ${NOW_SQL} WHERE id = ?`, binding.id);
     throw new BindingError('綁定碼已過期，請跟店家重新產生一組');
   }
+  if (binding.member_id != null && await memberKind(db, binding.member_id) === 'venue_student') throw new BindingError(VENUE_STUDENT_MSG);
   const now = nowUtc();
   const table = binding.member_id != null ? 'members' : 'venue_rental_coaches';
   const targetId = binding.member_id ?? binding.venue_coach_id;
@@ -54,7 +68,8 @@ export async function redeemBindingCode(db, env, { code, lineUserId }) {
     throw error;
   }
   const target = results[1].results[0];
-  const menuRole = binding.member_id != null ? target.role : 'venue_coach';
+  // 學員 → 學員版；會員（只買會籍）→ 會籍學員版；教練 → 教練版；場租教練 → 場租教練版
+  const menuRole = binding.member_id != null ? await memberKind(db, target.id) : 'venue_coach';
   const menu = richMenuIdForRole(env, menuRole);
   if (menu) await linkRichMenu(env, lineUserId, menu);
   return { target, role: binding.member_id != null ? target.role : null };
@@ -62,7 +77,7 @@ export async function redeemBindingCode(db, env, { code, lineUserId }) {
 
 // 角色 → 圖文選單（原本讀 settings.line_rich_menu_id_*，目前都沒設定，所以不會切換）
 function richMenuIdForRole(env, role) {
-  const key = { null: 'LINE_RICH_MENU_ID_DEFAULT', student: 'LINE_RICH_MENU_ID_MEMBER', coach: 'LINE_RICH_MENU_ID_COACH', venue_coach: 'LINE_RICH_MENU_ID_VENUE_COACH' }[String(role)];
+  const key = { null: 'LINE_RICH_MENU_ID_DEFAULT', student: 'LINE_RICH_MENU_ID_MEMBER', membership: 'LINE_RICH_MENU_ID_MEMBERSHIP', coach: 'LINE_RICH_MENU_ID_COACH', venue_coach: 'LINE_RICH_MENU_ID_VENUE_COACH' }[String(role)];
   return key ? env[key] || null : null;
 }
 

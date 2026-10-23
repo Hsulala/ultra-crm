@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>會員卡</title>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<link rel="stylesheet" href="../shared.css">
+<style>
+    /* 會員卡：櫃台用眼睛確認。即時時鐘＋持續流動的條紋，截圖或錄影重播都看得出來 */
+    .member-card { position: relative; overflow: hidden; border: 3px solid var(--ink); border-radius: 22px; box-shadow: 6px 6px 0 var(--ink); background: #111; color: #fff; padding: 22px 22px 18px; }
+    .member-card.expired { background: #6b6966; }
+    .member-card .flow { position: absolute; inset: 0; background: repeating-linear-gradient(115deg, transparent 0 26px, rgba(236,123,45,.22) 26px 52px); background-size: 300% 300%; animation: flow 6s linear infinite; pointer-events: none; }
+    .member-card.expired .flow { background: repeating-linear-gradient(115deg, transparent 0 26px, rgba(255,255,255,.08) 26px 52px); background-size: 300% 300%; }
+    @keyframes flow { from { background-position: 0 0; } to { background-position: 100% 100%; } }
+    .member-card > *:not(.flow) { position: relative; }
+    .brand { font: italic 800 22px "Barlow Condensed", sans-serif; letter-spacing: .16em; color: var(--accent); }
+    .member-name { font-size: 30px; font-weight: 900; margin: 14px 0 2px; line-height: 1.2; }
+    .member-sub { font-size: 14px; opacity: .8; }
+    .status-pill { display: inline-block; margin-top: 14px; padding: 3px 16px; border-radius: 999px; border: 2px solid #fff; font-weight: 900; font-size: 15px; }
+    .status-pill.ok { background: var(--accent); }
+    .status-pill.no { background: var(--danger); }
+    .period { margin-top: 14px; font-size: 14px; }
+    .period b { font-size: 16px; }
+    .clock { margin-top: 18px; text-align: center; font: italic 800 46px "Barlow Condensed", sans-serif; letter-spacing: .06em; line-height: 1; }
+    .clock-date { text-align: center; font-size: 14px; opacity: .85; margin-top: 4px; }
+    .pulse { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); margin-right: 8px; vertical-align: middle; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { transform: scale(.4); opacity: .4; } }
+    .note { text-align: center; font-size: 13px; color: var(--muted); margin-top: 16px; }
+</style>
+</head>
+<body>
+<div class="page">
+    <div class="header">
+        <span class="eyebrow">MEMBERSHIP</span>
+        <h1>會員卡</h1>
+        <p>入場時請出示此畫面給櫃台</p>
+    </div>
+    <div id="content"><div class="loading">載入中...</div></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+    const DEV_LINE_USER_ID = "dev-student-1";
+    const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+
+    function tick() {
+        const d = new Date(Date.now() + 8 * 3600 * 1000); // 台北時間
+        const hh = String(d.getUTCHours()).padStart(2, "0"), mm = String(d.getUTCMinutes()).padStart(2, "0"), ss = String(d.getUTCSeconds()).padStart(2, "0");
+        const clock = document.getElementById("clock");
+        if (!clock) return;
+        clock.innerHTML = `<span class="pulse"></span>${hh}:${mm}:${ss}`;
+        document.getElementById("clock-date").textContent = `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}（${WEEK[d.getUTCDay()]}）`;
+    }
+
+    function daysLeft(until, today) {
+        return Math.round((Date.parse(until) - Date.parse(today)) / 86400000);
+    }
+
+    async function main() {
+        const content = document.getElementById("content");
+        try {
+            const card = await apiFetch("/api/liff/membership-card", DEV_LINE_USER_ID);
+            if (!card) return;
+            const noMembership = !card.until;
+            const left = card.until ? daysLeft(card.until, card.today) : null;
+            const status = card.active
+                ? `<span class="status-pill ok">會籍有效</span>`
+                : `<span class="status-pill no">${noMembership ? "尚無會籍" : "會籍已到期"}</span>`;
+            content.innerHTML = `
+            <div class="member-card ${card.active ? "" : "expired"}">
+                <div class="flow"></div>
+                <div class="brand">ULTRA FITNESS</div>
+                <div class="member-name">${card.name}</div>
+                <div class="member-sub">${card.card_no ? `卡號 ${card.card_no}　` : ""}會員編號 ${card.member_no}</div>
+                ${status}
+                ${card.until ? `<div class="period">會籍期間　<b>${card.start || "?"} ～ ${card.until}</b>${card.active && left <= 14 ? `<br>◆ 還有 ${left} 天到期，請洽櫃台續約` : ""}</div>` : ""}
+                <div class="clock" id="clock"></div>
+                <div class="clock-date" id="clock-date"></div>
+            </div>
+            <div class="note">時間與條紋會即時跳動；截圖無效</div>`;
+            tick();
+            setInterval(tick, 1000);
+        } catch (err) {
+            content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
+        }
+    }
+
+    main();
+</script>
+</body>
+</html>

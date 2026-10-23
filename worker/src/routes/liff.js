@@ -3,9 +3,10 @@ import { Hono } from 'hono';
 import { currentMember, currentVenueCoach, lineUserId, requireMemberRole } from '../lib/auth.js';
 import { fail, parseBody, queryParam, readJson } from '../lib/http.js';
 import { verifySignature } from '../lib/line.js';
+import { taipeiToday } from '../lib/time.js';
 import { bookingOut, bookingsForCoach, createBooking, createVenueBooking, venueBookingOut } from '../services/bookings.js';
 import { activeContractsForCoach, classRecordsForMember, contractsForMember, createClassRecord, membersForContract, membersForContracts } from '../services/contracts.js';
-import { expireStaleCodes, publishedSchedule, redeemBindingCode, scheduleOut, submitUnavailability } from '../services/people.js';
+import { MEMBER_KIND_SQL, expireStaleCodes, publishedSchedule, redeemBindingCode, scheduleOut, submitUnavailability } from '../services/people.js';
 
 export const liff = new Hono();
 
@@ -60,12 +61,24 @@ liff.get('/class-records/active-contracts', async (c) => {
   })));
 });
 
+// 會員卡：櫃台用眼睛看（畫面有即時時鐘與動畫，截圖會看得出來）
+liff.get('/membership-card', async (c) => {
+  const member = await requireMemberRole(c, 'student');
+  const today = taipeiToday();
+  const until = member.membership_active_until;
+  return c.json({
+    name: member.name, member_no: member.member_no, card_no: member.membership_card_no ?? null,
+    start: member.membership_start_date ?? null, until: until ?? null, today,
+    active: !!until && until >= today && (!member.membership_start_date || member.membership_start_date <= today),
+  });
+});
+
 // 目前登入的 LINE 帳號綁到誰（綁定頁、教練預約頁用）
 liff.get('/me', async (c) => {
   const lineId = await lineUserId(c);
   const db = c.get('db');
-  const m = await db.first('SELECT id, name, role FROM members WHERE line_user_id = ? AND is_active = 1 LIMIT 1', lineId);
-  if (m) return c.json({ bound: true, kind: 'member', id: m.id, name: m.name, role: m.role });
+  const m = await db.first(`SELECT m.id, m.name, m.role, m.membership_active_until, (${MEMBER_KIND_SQL}) AS kind FROM members m WHERE m.line_user_id = ? AND m.is_active = 1 LIMIT 1`, lineId);
+  if (m) return c.json({ bound: true, kind: m.kind, id: m.id, name: m.name, role: m.role, membership_active_until: m.membership_active_until ?? null });
   const v = await db.first('SELECT id, name FROM venue_rental_coaches WHERE line_user_id = ? AND is_active = 1 LIMIT 1', lineId);
   if (v) return c.json({ bound: true, kind: 'venue_coach', id: v.id, name: v.name, role: 'venue_coach' });
   return c.json({ bound: false });

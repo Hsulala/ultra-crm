@@ -52,12 +52,15 @@
         try {
             const contracts = await apiFetch("/api/liff/contracts/mine", DEV_LINE_USER_ID);
             if (!contracts) return; // 正式環境正在 liff.login() 跳轉
+            // 同時有會籍的學員：上方放會員卡入口
+            const me = await apiFetch("/api/liff/me", DEV_LINE_USER_ID);
+            const cardLink = me && me.membership_active_until ? `<a class="card menu-link" href="../card/">出示會員卡<span>→</span></a>` : "";
 
             if (contracts.length === 0) {
-                content.innerHTML = `<div class="empty-state"><div class="mark">◆</div>目前沒有查到合約紀錄</div>`;
+                content.innerHTML = cardLink + `<div class="empty-state"><div class="mark">◆</div>目前沒有查到合約紀錄</div>`;
                 return;
             }
-            content.innerHTML = contracts.map(renderContract).join("");
+            content.innerHTML = cardLink + contracts.map(renderContract).join("");
         } catch (err) {
             content.innerHTML = `<div class="error-box">載入失敗：${err.message}</div>`;
         }

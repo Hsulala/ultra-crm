@@ -17,6 +17,7 @@ import { CATEGORY_LABELS, coachClassCounts, createRevenueEntry, dailySummary, mo
 import * as cash from '../services/cash.js';
 import { runImport } from '../services/legacy.js';
 import { unlinkRichMenu } from '../lib/line.js';
+import { MEMBER_KIND_SQL } from '../services/people.js';
 
 const NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%f000Z','now')";
 export const admin = new Hono();
@@ -147,20 +148,23 @@ admin.post('/venue-bookings/:id/cancel', async (c) => {
 
 // ---------- 會員 ----------
 const PAGE_SIZE = 50;
-const memberOut = (m) => ({ id: m.id, member_no: m.member_no, name: m.name, role: m.role, membership_start_date: m.membership_start_date, membership_active_until: m.membership_active_until });
+const memberOut = (m) => ({ id: m.id, member_no: m.member_no, name: m.name, role: m.role, membership_start_date: m.membership_start_date, membership_active_until: m.membership_active_until, membership_card_no: m.membership_card_no ?? null });
 
 admin.get('/members/page', async (c) => {
   const user = await requireRole(c, 'manager', 'front_desk');
   const db = c.get('db');
   const q = c.req.query('q') ?? null;
+  const kind = ['student', 'membership', 'venue_student', 'coach'].includes(c.req.query('kind')) ? c.req.query('kind') : '';
   let page = queryParam(c, 'page', 'int', 1);
-  const where = q ? 'WHERE name LIKE ?1 OR member_no LIKE ?1' : '';
-  const args = q ? [`%${q}%`] : [];
-  const total = Number(await db.value(`SELECT count(*) FROM members ${where}`, ...args));
+  const conds = []; const args = [];
+  if (q) { conds.push('(m.name LIKE ? OR m.member_no LIKE ?)'); args.push(`%${q}%`, `%${q}%`); }
+  if (kind) { conds.push(`(${MEMBER_KIND_SQL}) = ?`); args.push(kind); }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const total = Number(await db.value(`SELECT count(*) FROM members m ${where}`, ...args));
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   page = Math.min(Math.max(page, 1), pages);
-  const members = await db.all(`SELECT * FROM members ${where} ORDER BY created_at DESC, id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, ...args);
-  return render(c, 'admin/members.html', { current_user: user, active: 'members', members, q: q ?? '', page, pages, total });
+  const members = await db.all(`SELECT m.*, (${MEMBER_KIND_SQL}) AS kind FROM members m ${where} ORDER BY m.created_at DESC, m.id DESC LIMIT ${PAGE_SIZE} OFFSET ${(page - 1) * PAGE_SIZE}`, ...args);
+  return render(c, 'admin/members.html', { current_user: user, active: 'members', members, q: q ?? '', kind, page, pages, total });
 });
 admin.post('/members', async (c) => {
   await requireRole(c, 'manager', 'front_desk');
