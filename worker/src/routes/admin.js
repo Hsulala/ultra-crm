@@ -16,6 +16,7 @@ import {
 import { CATEGORY_LABELS, coachClassCounts, createRevenueEntry, dailySummary, monthlyEntries, monthlySummary, paymentMethodSuggestions, revenueOut } from '../services/revenue.js';
 import * as cash from '../services/cash.js';
 import { runImport } from '../services/legacy.js';
+import { unlinkRichMenu } from '../lib/line.js';
 
 const NOW_SQL = "strftime('%Y-%m-%dT%H:%M:%f000Z','now')";
 export const admin = new Hono();
@@ -185,6 +186,19 @@ admin.post('/members/:id/binding-code', async (c) => {
   const db = c.get('db');
   if (!await db.first('SELECT id FROM members WHERE id = ?', id)) fail(404, '找不到會員');
   return c.json(bindingCodeOut(await generateBindingCode(db, { memberId: id, createdByAdminId: user.id })));
+});
+
+// 解除 LINE 綁定：只清掉 LINE 帳號、選單退回通用版；身分（學員／教練）不變，之後可以再發綁定碼
+admin.post('/members/:id/unbind', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const db = c.get('db');
+  const m = await db.first('SELECT id, line_user_id FROM members WHERE id = ?', pathId(c, 'id'));
+  if (!m) fail(404, '找不到會員');
+  if (m.line_user_id) {
+    await db.run(`UPDATE members SET line_user_id = NULL, updated_at = ${NOW_SQL} WHERE id = ?`, m.id);
+    await unlinkRichMenu(c.env, m.line_user_id);
+  }
+  return c.json({ status: 'success' });
 });
 
 // ---------- 合約 ----------
@@ -395,6 +409,18 @@ admin.post('/venue-coaches/:id/binding-code', async (c) => {
   const db = c.get('db');
   if (!await db.first('SELECT id FROM venue_rental_coaches WHERE id = ?', id)) fail(404, '找不到場租教練');
   return c.json(bindingCodeOut(await generateBindingCode(db, { venueCoachId: id, createdByAdminId: user.id })));
+});
+
+admin.post('/venue-coaches/:id/unbind', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const db = c.get('db');
+  const v = await db.first('SELECT id, line_user_id FROM venue_rental_coaches WHERE id = ?', pathId(c, 'id'));
+  if (!v) fail(404, '找不到場租教練');
+  if (v.line_user_id) {
+    await db.run(`UPDATE venue_rental_coaches SET line_user_id = NULL, updated_at = ${NOW_SQL} WHERE id = ?`, v.id);
+    await unlinkRichMenu(c.env, v.line_user_id);
+  }
+  return c.json({ status: 'success' });
 });
 
 // ---------- 營收 ----------

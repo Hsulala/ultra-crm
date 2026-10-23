@@ -67,6 +67,7 @@
             <td>{% if m.line_user_id %}◆ 已綁定{% else %}◇ 未綁定{% endif %}</td>
             <td>
                 <button onclick="issueBindingCode({{ m.id }})" class="btn-sm">產生綁定碼</button>
+                {% if m.line_user_id %}<button onclick="unbindLine('/admin/members/{{ m.id }}/unbind', '{{ m.name }}')" class="btn-sm danger">解除綁定</button>{% endif %}
                 <button onclick="toggleMembershipEdit({{ m.id }}, '{{ m.membership_start_date or '' }}', '{{ m.membership_active_until or '' }}')" class="btn-sm">編輯會籍</button>
             </td>
         </tr>
@@ -127,6 +128,12 @@
             const body = await res.json().catch(() => ({}));
             msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
         }
+    }
+
+    async function unbindLine(url, name) {
+        if (!confirm(`確定要解除 ${name} 的 LINE 綁定嗎？\n解除後 LINE 選單會退回通用版，需要時再重新產生綁定碼。`)) return;
+        const res = await fetch(url, { method: "POST" });
+        if (res.ok) location.reload(); else alert("解除失敗");
     }
 
     async function issueBindingCode(memberId) {

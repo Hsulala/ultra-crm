@@ -38,6 +38,7 @@
             <td>
                 <button onclick="renameCoach({{ c.id }})" class="btn-sm">改名</button>
                 <button onclick="issueBindingCode({{ c.id }})" class="btn-sm">產生綁定碼</button>
+                {% if c.line_user_id %}<button onclick="unbindLine('/admin/venue-coaches/{{ c.id }}/unbind', '{{ c.name }}')" class="btn-sm danger">解除綁定</button>{% endif %}
                 {% if c.is_active %}
                 <button onclick="setActive({{ c.id }}, false)" class="btn-sm danger">停用</button>
                 {% else %}
@@ -91,6 +92,12 @@
             const body = await res.json().catch(() => ({}));
             alert(body.detail || "改名失敗");
         }
+    }
+
+    async function unbindLine(url, name) {
+        if (!confirm(`確定要解除 ${name} 的 LINE 綁定嗎？\n解除後 LINE 選單會退回通用版，需要時再重新產生綁定碼。`)) return;
+        const res = await fetch(url, { method: "POST" });
+        if (res.ok) location.reload(); else alert("解除失敗");
     }
 
     async function issueBindingCode(venueCoachId) {
