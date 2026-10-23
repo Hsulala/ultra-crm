@@ -42,5 +42,13 @@ app.onError((error, c) => {
   return c.text('Internal Server Error', 500);
 });
 
-export default { fetch: app.fetch };
+// 每天台北 00:10（UTC 16:10）：會籍到期的會員自動解除綁定
+async function scheduled(event, env, ctx) {
+  const { wrap } = await import('./lib/db.js');
+  const { unbindExpiredMemberships } = await import('./services/people.js');
+  const { taipeiToday } = await import('./lib/time.js');
+  ctx.waitUntil(unbindExpiredMemberships(wrap(env.DB), env, taipeiToday()));
+}
+
+export default { fetch: app.fetch, scheduled };
 export { app };

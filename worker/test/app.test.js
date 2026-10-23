@@ -201,3 +201,31 @@ test('會籍營收自動延長／新建會員；體驗課佔時段與名額並�
   const auto = await call('POST', '/admin/members', { json: { name: '自動編號', role: 'student' } });
   assert.match(auto.data.member_no, /^UF\d{4}$/);
 });
+
+test('合約修改（教練、學員、堂數）與刪除；會籍到期自動解除綁定（有教練課的不動）', async () => {
+  const { call, sql, db, env } = setup();
+  await call('POST', '/admin/login', { form: { username: 'owner', password: 'legacy-pass-1' } });
+  const k = (await call('POST', '/admin/contracts', { json: { coach_id: 1, member_ids: [2], course_type: 'strength', purchase_date: '2026-10-01', unit_price: 1000, total_sessions: 10 } })).data.id;
+  // 改成 1對2、總堂數 12、已上 3、加備註
+  const r = await call('POST', `/admin/contracts/${k}`, { json: { coach_id: 1, member_ids: [2, 3], course_type: 'strength', purchase_date: '2026-10-02', unit_price: 1200, total_sessions: 12, used_sessions: 3, status: 'active', note: '改過' } });
+  assert.equal(r.status, 200, r.text);
+  assert.equal(sql.prepare('SELECT count(*) n FROM contract_members WHERE contract_id = ?').get(k).n, 2);
+  assert.deepEqual({ ...sql.prepare('SELECT total_sessions, used_sessions, note FROM contracts WHERE id = ?').get(k) }, { total_sessions: 12, used_sessions: 3, note: '改過' });
+  // 已上過課 → 不能刪；改回 0 堂、沒有預約 → 可以刪
+  assert.equal((await call('POST', `/admin/contracts/${k}/delete`)).status, 400);
+  await call('POST', `/admin/contracts/${k}`, { json: { coach_id: 1, member_ids: [2], course_type: 'strength', purchase_date: '2026-10-02', unit_price: 1200, total_sessions: 12, used_sessions: 0, status: 'active' } });
+  assert.equal((await call('POST', `/admin/contracts/${k}/delete`)).status, 200);
+  assert.equal(sql.prepare('SELECT count(*) n FROM contracts WHERE id = ?').get(k).n, 0);
+
+  // 會員 4（只有會籍、已過期、有綁）→ 解除；會員 2（有教練課、會籍過期）→ 不動
+  const k2 = (await call('POST', '/admin/contracts', { json: { coach_id: 1, member_ids: [2], course_type: 'strength', purchase_date: '2026-10-01', unit_price: 1000, total_sessions: 10 } })).data.id;
+  assert.ok(k2);
+  sql.exec("UPDATE members SET line_user_id = 'U-member', membership_active_until = '2026-10-01' WHERE id = 4");
+  sql.exec("UPDATE members SET line_user_id = 'U-student', membership_active_until = '2026-10-01' WHERE id = 2");
+  sql.exec("UPDATE members SET line_user_id = 'U-still', membership_active_until = '2026-12-31' WHERE id = 5");
+  const { unbindExpiredMemberships } = await import('../src/services/people.js');
+  assert.equal(await unbindExpiredMemberships(db, env, '2026-10-23'), 1);
+  assert.equal(sql.prepare('SELECT line_user_id FROM members WHERE id = 4').get().line_user_id, null);
+  assert.equal(sql.prepare('SELECT line_user_id FROM members WHERE id = 2').get().line_user_id, 'U-student');
+  assert.equal(sql.prepare('SELECT line_user_id FROM members WHERE id = 5').get().line_user_id, 'U-still');
+});

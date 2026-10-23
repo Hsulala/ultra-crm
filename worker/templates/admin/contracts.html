@@ -139,7 +139,13 @@
         </tr>
         <tr id="sessions-{{ c.id }}" class="session-detail" style="display:none">
             <td colspan="8">
-                <div class="session-meta">單價 {{ (c.unit_price)|fmt0 }} 元{% if c.note %}　備註：{{ c.note }}{% endif %}</div>
+                <div class="session-meta" style="display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span>單價 {{ (c.unit_price)|fmt0 }} 元{% if c.note %}　備註：{{ c.note }}{% endif %}</span>
+                    <span>
+                        <button class="btn-sm" onclick="event.stopPropagation(); openEdit(this)" data-contract='{{ c.edit_json }}'>修改合約</button>
+                        <button class="btn-sm danger" onclick="event.stopPropagation(); deleteContract({{ c.id }}, '{{ c.contract_no or c.id }}')">刪除</button>
+                    </span>
+                </div>
                 {% if c.sessions %}
                 <ol class="session-list">
                     {% for s in c.sessions %}
@@ -247,6 +253,81 @@
             const body = await res.json().catch(() => ({}));
             msg.className = "msg error"; msg.style.display = "block"; msg.textContent = body.detail || "新增失敗";
         }
+    }
+</script>
+
+<dialog id="edit-dlg" class="edit-dlg">
+    <h3>修改合約</h3>
+    <div class="form-row">
+        <div><label>合約編號</label><input type="text" id="e-no"></div>
+        <div><label>教練</label>
+            <select id="e-coach" data-combo>
+                <option value="">請選擇教練</option>
+                <optgroup label="店內教練">{% for c in coaches %}<option value="m-{{ c.id }}">{{ c.name }}</option>{% endfor %}</optgroup>
+                <optgroup label="場租教練（僅限皮拉提斯）">{% for c in venue_coaches %}<option value="v-{{ c.id }}">{{ c.name }}</option>{% endfor %}</optgroup>
+            </select>
+        </div>
+        <div><label>課程類型</label><select id="e-course"><option value="strength">重訓</option><option value="pilates">皮拉提斯</option></select></div>
+    </div>
+    <div class="form-row">
+        <div><label>學員 1</label><select id="e-s1" data-combo><option value="">請選擇學員</option>{% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}</select></div>
+        <div><label>學員 2（1對2 才填）</label><select id="e-s2" data-combo><option value="">無</option>{% for s in students %}<option value="{{ s.id }}">{{ s.name }}（{{ s.member_no }}）</option>{% endfor %}</select></div>
+    </div>
+    <div class="form-row">
+        <div><label>購買日期</label><input type="date" id="e-date"></div>
+        <div><label>單價</label><input type="number" id="e-price"></div>
+        <div><label>總堂數</label><input type="number" id="e-total"></div>
+        <div><label>已上堂數</label><input type="number" id="e-used"></div>
+        <div><label>狀態</label><select id="e-status"><option value="active">進行中</option><option value="free">FREE</option><option value="refunded">已退費</option></select></div>
+    </div>
+    <label>備註</label><input type="text" id="e-note">
+    <div id="e-msg" style="color:var(--danger); font-weight:700; min-height:20px; margin:8px 0;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn-sm" onclick="document.getElementById('edit-dlg').close()">取消</button>
+        <button class="primary" onclick="saveEdit()">儲存</button>
+    </div>
+</dialog>
+<style>
+    .edit-dlg { border: 3px solid var(--ink); border-radius: 18px; box-shadow: 6px 6px 0 var(--ink); padding: 20px 22px; width: min(760px, 94vw); overflow: visible; }
+    .edit-dlg::backdrop { background: rgba(0,0,0,.35); }
+    .edit-dlg h3 { margin: 0 0 12px; }
+</style>
+<script>
+    let editId = null;
+    const setVal = (id, v) => { const el = document.getElementById(id); el.value = v ?? ""; el.dispatchEvent(new Event("combo:refresh")); };
+    function openEdit(btn) {
+        const k = JSON.parse(btn.dataset.contract);
+        editId = k.id;
+        setVal("e-no", k.contract_no); setVal("e-coach", k.coach); setVal("e-course", k.course_type);
+        setVal("e-s1", k.member_ids[0] ? String(k.member_ids[0]) : ""); setVal("e-s2", k.member_ids[1] ? String(k.member_ids[1]) : "");
+        setVal("e-date", k.purchase_date); setVal("e-price", k.unit_price); setVal("e-total", k.total_sessions); setVal("e-used", k.used_sessions);
+        setVal("e-status", k.status); setVal("e-note", k.note);
+        document.getElementById("e-msg").textContent = "";
+        document.getElementById("edit-dlg").showModal();
+    }
+    async function saveEdit() {
+        const coach = document.getElementById("e-coach").value;
+        const ids = [document.getElementById("e-s1").value, document.getElementById("e-s2").value].filter(Boolean).map(Number);
+        const msg = document.getElementById("e-msg");
+        if (!coach) { msg.textContent = "請選擇教練"; return; }
+        if (!ids.length) { msg.textContent = "請至少選一位學員"; return; }
+        const body = {
+            contract_no: document.getElementById("e-no").value.trim() || null,
+            coach_id: coach.startsWith("m-") ? Number(coach.slice(2)) : null, venue_coach_id: coach.startsWith("v-") ? Number(coach.slice(2)) : null,
+            member_ids: ids, course_type: document.getElementById("e-course").value, purchase_date: document.getElementById("e-date").value,
+            unit_price: Number(document.getElementById("e-price").value || 0), total_sessions: Number(document.getElementById("e-total").value || 0),
+            used_sessions: Number(document.getElementById("e-used").value || 0), status: document.getElementById("e-status").value,
+            note: document.getElementById("e-note").value.trim() || null,
+        };
+        const res = await fetch(`/admin/contracts/${editId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (res.ok) location.reload();
+        else { const b = await res.json().catch(() => ({})); msg.textContent = typeof b.detail === "string" ? b.detail : "儲存失敗"; }
+    }
+    async function deleteContract(id, no) {
+        if (!confirm(`確定刪除合約 #${no}？\n只有沒上過課、沒有預約、沒有營收的合約可以刪除，刪除後無法復原。`)) return;
+        const res = await fetch(`/admin/contracts/${id}/delete`, { method: "POST" });
+        if (res.ok) location.reload();
+        else { const b = await res.json().catch(() => ({})); alert(typeof b.detail === "string" ? b.detail : "刪除失敗"); }
     }
 </script>
 {% endblock %}

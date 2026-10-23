@@ -13,7 +13,9 @@
   ],
   // 讓程式在資料庫附近執行（一頁要查很多次資料庫，來回時間差很多）
   "placement": { "mode": "smart" },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // 每天台北 00:10：會籍到期自動解除綁定（帳號免費方案最多 5 個排程，這是第 5 個）
+  "triggers": { "crons": ["10 16 * * *"] }
   // 金鑰與密碼用 secret 設定（npx wrangler secret put 名稱）：
   //   SESSION_SECRET_KEY（至少 32 字元）、ADMIN_BOOTSTRAP_USERNAME／PASSWORD（只在沒有任何帳號時用）、
   //   LINE_CHANNEL_ID、LINE_CHANNEL_SECRET、LINE_CHANNEL_ACCESS_TOKEN、INTERNAL_CRON_SECRET、REMOTE_READ_KEY、REMOTE_WRITE_KEY

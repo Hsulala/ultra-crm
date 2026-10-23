@@ -186,3 +186,20 @@ export async function bootstrapAdmin(db, env) {
   }
   await db.run("INSERT OR IGNORE INTO admin_users (username, password_hash, role, is_active) VALUES (?, ?, 'super_admin', 1)", username, await hashPassword(password));
 }
+
+
+/**
+ * 每天台北 00:10 執行：只買會籍（沒有店內教練課）的會員，會籍迄日已過 → 解除 LINE 綁定、選單退回通用版。
+ * 有教練課的學員不動（還要看課程）。沒有緩衝期；續約後由櫃台重新發綁定碼。
+ */
+export async function unbindExpiredMemberships(db, env, today) {
+  const rows = await db.all(`SELECT m.id, m.name, m.line_user_id FROM members m
+    WHERE m.line_user_id IS NOT NULL AND m.membership_active_until IS NOT NULL AND m.membership_active_until < ?
+      AND (${MEMBER_KIND_SQL}) = 'membership'`, today);
+  for (const m of rows) {
+    await db.run(`UPDATE members SET line_user_id = NULL, updated_at = ${NOW_SQL} WHERE id = ? AND line_user_id = ?`, m.id, m.line_user_id);
+    await unlinkRichMenu(env, m.line_user_id);
+  }
+  if (rows.length) console.log(`會籍到期自動解除綁定 ${rows.length} 位：${rows.map((m) => m.name).join('、')}`);
+  return rows.length;
+}

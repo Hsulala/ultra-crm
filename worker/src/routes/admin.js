@@ -307,6 +307,9 @@ admin.get('/contracts/page', async (c) => {
       id: x.id, contract_no: x.contract_no, student_names: (students.get(x.id) ?? []).map((m) => m.name).join('、'), coach_name: coachName,
       course_type: x.course_type, status: x.status, total_sessions: x.total_sessions, used_sessions: x.used_sessions, purchase_date: x.purchase_date,
       expiry_date: x.expiry_date, unit_price: Number(x.unit_price), note: x.note, sessions: list, last_session: dated.length ? dated[dated.length - 1] : null,
+      edit_json: JSON.stringify({ id: x.id, contract_no: x.contract_no ?? '', coach: x.coach_id != null ? `m-${x.coach_id}` : `v-${x.venue_coach_id}`, course_type: x.course_type,
+        purchase_date: x.purchase_date, unit_price: Number(x.unit_price), total_sessions: x.total_sessions, used_sessions: x.used_sessions, status: x.status, note: x.note ?? '',
+        member_ids: (students.get(x.id) ?? []).map((m) => m.id) }),
     };
   });
   return render(c, 'admin/contracts.html', {
@@ -334,6 +337,57 @@ admin.post('/contracts', async (c) => {
   }
   if (!p.member_ids.length && !p.new_student_name) fail(400, '請至少選一位既有學員，或填新學員姓名');
   return c.json(contractOut(await createContract(db, p)));
+});
+
+// 修改合約：教練、學員（1～2 位）、類型、日期、單價、堂數、已上堂數、狀態、備註
+admin.post('/contracts/:id', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const db = c.get('db');
+  const id = pathId(c, 'id');
+  const old = await db.first('SELECT * FROM contracts WHERE id = ?', id);
+  if (!old) fail(404, '找不到合約');
+  const p = parseBody(await readJson(c), {
+    coach_id: 'int?', venue_coach_id: 'int?', member_ids: ['intList', () => []], course_type: 'str', purchase_date: 'date', unit_price: 'float',
+    total_sessions: 'int', used_sessions: 'int', contract_no: 'str?', status: 'str', note: 'str?',
+  });
+  if ((p.coach_id == null) === (p.venue_coach_id == null)) fail(400, '請選擇一位教練');
+  if (!['strength', 'pilates'].includes(p.course_type)) fail(400, '課程類型不正確');
+  if (!['active', 'free', 'refunded'].includes(p.status)) fail(400, '狀態不正確');
+  if (p.venue_coach_id != null && p.course_type !== 'pilates') fail(400, '場租教練只能開皮拉提斯合約');
+  if (p.total_sessions < 1 || p.used_sessions < 0) fail(400, '堂數不正確');
+  if (p.coach_id != null && (await db.first('SELECT role FROM members WHERE id = ?', p.coach_id))?.role !== 'coach') fail(400, '教練不存在');
+  if (p.venue_coach_id != null && !await db.first('SELECT id FROM venue_rental_coaches WHERE id = ?', p.venue_coach_id)) fail(400, '場租教練不存在');
+  const ids = [...new Set(p.member_ids)];
+  if (!ids.length) fail(400, '合約至少要有一位學員');
+  if (ids.length > 2) fail(400, '合約最多兩位學員（1對2）');
+  if (Number(await db.value(`SELECT count(*) FROM members WHERE id IN (${ids.map(() => '?').join(',')})`, ...ids)) !== ids.length) fail(400, '學員不存在');
+  await db.batch([
+    db.prep(`UPDATE contracts SET contract_no = ?, coach_id = ?, venue_coach_id = ?, course_type = ?, purchase_date = ?, unit_price = ?, total_sessions = ?, used_sessions = ?,
+      status = ?, note = ?, updated_at = ${NOW_SQL} WHERE id = ?`,
+    [p.contract_no || null, p.coach_id ?? null, p.venue_coach_id ?? null, p.course_type, p.purchase_date, p.unit_price, p.total_sessions, p.used_sessions, p.status, p.note || null, id]),
+    db.prep('DELETE FROM contract_members WHERE contract_id = ?', [id]),
+    ...ids.map((m) => db.prep('INSERT INTO contract_members (contract_id, member_id) VALUES (?, ?)', [id, m])),
+  ]);
+  return c.json({ status: 'success' });
+});
+
+// 刪除合約：只有「沒上過課、沒有預約、沒有掛營收」的合約能刪（例如建錯的）；有紀錄的請改狀態或修改
+admin.post('/contracts/:id/delete', async (c) => {
+  await requireRole(c, 'manager', 'front_desk');
+  const db = c.get('db');
+  const id = pathId(c, 'id');
+  const k = await db.first('SELECT * FROM contracts WHERE id = ?', id);
+  if (!k) fail(404, '找不到合約');
+  const u = await db.first(`SELECT (SELECT count(*) FROM contract_sessions WHERE contract_id = ?1) s, (SELECT count(*) FROM class_records WHERE contract_id = ?1) r,
+    (SELECT count(*) FROM bookings WHERE contract_id = ?1 AND status <> 'cancelled') b, (SELECT count(*) FROM revenue_details WHERE contract_id = ?1) v`, id);
+  const why = [u.s || k.used_sessions ? '已經有上課紀錄' : '', u.b ? `還有 ${u.b} 筆預約` : '', u.v ? `有 ${u.v} 筆營收掛在這份合約` : ''].filter(Boolean);
+  if (why.length) fail(400, `這份合約${why.join('、')}，不能刪除。建錯資料請用「修改」，退費請把狀態改成「已退費」。`);
+  await db.batch([
+    db.prep('DELETE FROM bookings WHERE contract_id = ?', [id]),
+    db.prep('DELETE FROM contract_members WHERE contract_id = ?', [id]),
+    db.prep('DELETE FROM contracts WHERE id = ?', [id]),
+  ]);
+  return c.json({ status: 'deleted' });
 });
 
 // ---------- 紀錄課程 ----------
